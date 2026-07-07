@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
+  <defs>
+    <linearGradient id="bk" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#242424"/>
+      <stop offset="0.55" stop-color="#141414"/>
+      <stop offset="1" stop-color="#0a0a0a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#d97757" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#d97757" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="cf"><rect width="600" height="900" rx="48"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#cf)">
+    <rect width="600" height="900" fill="url(#bk)"/>
+    <circle cx="300" cy="270" r="230" fill="url(#glow)"/>
+
+    <!-- real Claude logo -->
+    <svg x="200" y="150" width="200" height="200" viewBox="0 -.01 39.5 39.53">
+      <path fill="#d97757" d="m7.75 26.27 7.77-4.36.13-.38-.13-.21h-.38l-1.3-.08-4.44-.12-3.85-.16-3.73-.2-.94-.2-.88-1.16.09-.58.79-.53 1.13.1 2.5.17 3.75.26 2.72.16 4.03.42h.64l.09-.26-.22-.16-.17-.16-3.88-2.63-4.2-2.78-2.2-1.6-1.19-.81-.6-.76-.26-1.66 1.08-1.19 1.45.1.37.1 1.47 1.13 3.14 2.43 4.1 3.02.6.5.24-.17.03-.12-.27-.45-2.23-4.03-2.38-4.1-1.06-1.7-.28-1.02c-.1-.42-.17-.77-.17-1.2l1.23-1.67.68-.22 1.64.22.69.6 1.02 2.33 1.65 3.67 2.56 4.99.75 1.48.4 1.37.15.42h.26v-.24l.21-2.81.39-3.45.38-4.44.13-1.25.62-1.5 1.23-.81.96.46.79 1.13-.11.73-.47 3.05-.92 4.78-.6 3.2h.35l.4-.4 1.62-2.15 2.72-3.4 1.2-1.35 1.4-1.49.9-.71h1.7l1.25 1.86-.56 1.92-1.75 2.22-1.45 1.88-2.08 2.8-1.3 2.24.12.18.31-.03 4.7-1 2.54-.46 3.03-.52 1.37.64.15.65-.54 1.33-3.24.8-3.8.76-5.66 1.34-.07.05.08.1 2.55.24 1.09.06h2.67l4.97.37 1.3.86.78 1.05-.13.8-2 1.02-2.7-.64-6.3-1.5-2.16-.54h-.3v.18l1.8 1.76 3.3 2.98 4.13 3.84.21.95-.53.75-.56-.08-3.63-2.73-1.4-1.23-3.17-2.67h-.21v.28l.73 1.07 3.86 5.8.2 1.78-.28.58-1 .35-1.1-.2-2.26-3.17-2.33-3.57-1.88-3.2-.23.13-1.11 11.95-.52.61-1.2.46-1-.76-.53-1.23.53-2.43.64-3.17.52-2.52.47-3.13.28-1.04-.02-.07-.23.03-2.36 3.24-3.59 4.85-2.84 3.04-.68.27-1.18-.61.11-1.09.66-.97 3.93-5 2.37-3.1 1.53-1.79-.01-.26h-.09l-10.44 6.78-1.86.24-.8-.75.1-1.23.38-.4 3.14-2.16z"/>
+    </svg>
+
+    <text x="300" y="416" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600" letter-spacing="6" fill="#e8e4dc">CLAUDE TECHNICAL HUB</text>
+
+    <!-- headline -->
+    <text x="300" y="556" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="800" letter-spacing="1" fill="#f5f3ee">BECOME A</text>
+    <text x="300" y="624" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="800" letter-spacing="1" fill="#d97757">MEMBER</text>
+
+    <text x="300" y="672" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" letter-spacing="2" fill="#9a938b">Official Membership Card</text>
+
+    <rect x="180" y="726" width="240" height="2.5" rx="1.25" fill="#d97757" opacity="0.5"/>
+
+    <text x="72" y="808" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" letter-spacing="1.5" fill="#c9c3bb">MEMBER ID</text>
+    <text x="72" y="836" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="500" letter-spacing="1" fill="#7d766e">CTH · 2026 · 0001</text>
+    <text x="528" y="808" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" letter-spacing="1.5" fill="#c9c3bb">SINCE</text>
+    <text x="528" y="836" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="500" letter-spacing="1" fill="#7d766e">2026</text>
+  </g>
+
+  <rect x="5" y="5" width="590" height="890" rx="44" fill="none" stroke="#d97757" stroke-opacity="0.35" stroke-width="3"/>
+</svg>

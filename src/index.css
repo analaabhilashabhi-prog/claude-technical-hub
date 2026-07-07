@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Intro Rust display font for the hero. Drop the real font file at
+   public/fonts/IntroRust.woff2 (or .otf) and it takes over automatically;
+   until then it falls back to the heavy Poppins Black below. */
+@font-face {
+  font-family: 'IntroRust';
+  src: url('/fonts/IntroRust.woff2') format('woff2'),
+       url('/fonts/IntroRust.otf') format('opentype');
+  font-weight: 400 900;
+  font-display: swap;
+}
+
+.font-display {
+  font-family: 'IntroRust', 'Poppins', 'Inter', sans-serif;
+}
+
+.font-syne {
+  font-family: 'Syne', 'Inter', sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* offset for sticky navbar when jumping to anchors */
+    scroll-padding-top: 80px;
+  }
+
+  body {
+    @apply bg-black text-white/90 font-sans antialiased;
+  }
+
+  ::selection {
+    background: rgba(217, 119, 87, 0.35); /* Claude coral */
+    color: #fff;
+  }
+
+  /* dark, brand-tinted scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #000;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1f1f1f;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #d97757;
+  }
+}
+
+@layer utilities {
+  /* hide scrollbar for the mobile architect carousel */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* subtle infinite float for accent elements */
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  .animate-floaty {
+    animation: floaty 6s ease-in-out infinite;
+  }
+
+  /* direction-aware slide for the projects carousel */
+  /* main card emerges from behind the side columns (buttons / intro),
+     sliding a full card-width so it appears to come out from behind them.
+     Cinematic: slow ease-in-out with a subtle blur-to-focus + scale settle. */
+  /* main card — pure horizontal glide out from behind the side columns */
+  @keyframes projMainRight {
+    from { transform: translate3d(112%, 0, 0); }
+    to   { transform: translate3d(0, 0, 0); }
+  }
+  @keyframes projMainLeft {
+    from { transform: translate3d(-112%, 0, 0); }
+    to   { transform: translate3d(0, 0, 0); }
+  }
+  .animate-projMainRight {
+    animation: projMainRight 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform;
+  }
+  .animate-projMainLeft {
+    animation: projMainLeft 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform;
+  }
+
+  /* supporting visuals slide the same direction so it all moves as one */
+  @keyframes projSubRight {
+    from { opacity: 0; transform: translate3d(48px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes projSubLeft {
+    from { opacity: 0; transform: translate3d(-48px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  .animate-projSubRight {
+    animation: projSubRight 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform, opacity;
+  }
+  .animate-projSubLeft {
+    animation: projSubLeft 1.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform, opacity;
+  }
+}
