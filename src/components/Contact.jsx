@@ -1,160 +1,171 @@
-import { useState } from 'react'
-import { contactDetails } from '../data/mockData'
-import { iconMap } from './Icons'
+import { lazy, Suspense } from 'react'
 import Reveal from './Reveal'
-import ScrollFloat from './ScrollFloat'
+import { Pin, Phone, Mail, ThumbsUp, LinkedIn, Instagram, YouTube, Facebook } from './Icons'
+
+const GlobeView = lazy(() => import('./GlobeView'))
+
+/* ------------------------------------------------------------------
+   EDIT YOUR CONTACT DETAILS + LINKS HERE
+   (give me the real links/values and I'll drop them in)
+------------------------------------------------------------------- */
+const INFO = [
+  {
+    icon: Pin,
+    label: 'Address',
+    lines: ['Hyderabad', '4th Floor, Innovation Towers, HITEC City, Hyderabad, India 500081'],
+  },
+  {
+    icon: Phone,
+    label: 'Phone',
+    lines: ['+91 98765 43210'],
+    href: 'tel:+919876543210',
+  },
+  {
+    icon: Mail,
+    label: 'Mail',
+    lines: ['contact@technicalhub.io'],
+    href: 'mailto:contact@technicalhub.io',
+  },
+]
+
+const SOCIALS = [
+  { icon: LinkedIn, label: 'LinkedIn', href: '#' },
+  { icon: Instagram, label: 'Instagram', href: '#' },
+  { icon: YouTube, label: 'YouTube', href: '#' },
+  { icon: Facebook, label: 'Facebook', href: '#' },
+]
+
+// Field of small angled tick-marks (bottom-right decoration).
+function DashField() {
+  const cols = 8
+  const rows = 3
+  const cells = Array.from({ length: cols * rows })
+  return (
+    <div
+      className="grid gap-x-8 gap-y-6"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+    >
+      {cells.map((_, i) => {
+        const angle = Math.round(Math.sin(i * 1.3) * 40) // deterministic varied tilt
+        return (
+          <span
+            key={i}
+            className="h-4 w-[3px] rounded-full bg-white/25"
+            style={{ transform: `rotate(${angle}deg)` }}
+          />
+        )
+      })}
+    </div>
+  )
+}
 
 export default function Contact() {
-  const [form, setForm] = useState({ name: '', email: '', message: '' })
-  const [sent, setSent] = useState(false)
-
-  const update = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
-
-  const onSubmit = (e) => {
-    e.preventDefault()
-    // mock submit — no backend
-    setSent(true)
-    setForm({ name: '', email: '', message: '' })
-    setTimeout(() => setSent(false), 4000)
-  }
-
   return (
-    <section id="contact" className="relative overflow-hidden bg-black py-20 sm:py-28">
-      <div className="pointer-events-none absolute left-1/2 top-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-claude-500/10 blur-3xl" />
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <Reveal>
-            <span className="inline-block rounded-full bg-white/5 px-3.5 py-1 text-xs font-bold uppercase tracking-widest text-white ring-1 ring-white/15 backdrop-blur">
-              Say Hello
-            </span>
-          </Reveal>
-          <ScrollFloat
-            containerClassName="mt-4 text-3xl font-extrabold tracking-tight text-white sm:text-4xl text-center"
-            stagger={0.03}
-          >
-            Get In Touch
-          </ScrollFloat>
-          <Reveal delay={160}>
-            <p className="mt-4 text-base leading-relaxed text-white/55">
-              Have a program, product, or partnership in mind? We'd love to hear from you.
-            </p>
-          </Reveal>
-          <Reveal delay={220}>
-            <div className="mx-auto mt-5 h-1 w-16 rounded-full bg-gradient-to-r from-brand-500 via-claude-500 to-claude-400" />
-          </Reveal>
-        </div>
+    <section id="contact" className="relative overflow-hidden bg-black py-24 sm:py-32">
+      {/* brand-green radial glow, top-left + coral accent bottom-right */}
+      <div
+        className="pointer-events-none absolute -left-40 -top-32 h-[42rem] w-[42rem] rounded-full blur-[120px]"
+        style={{ background: 'radial-gradient(circle, rgba(0,135,55,0.30), transparent 62%)' }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-40 right-[-10%] h-[34rem] w-[34rem] rounded-full blur-[130px]"
+        style={{ background: 'radial-gradient(circle, rgba(217,119,87,0.14), transparent 65%)' }}
+      />
 
-        <div className="mt-14">
-          {/* Contact info — 2 per row */}
-          <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
-            {contactDetails.map((c, i) => {
-              const Icon = iconMap[c.icon]
-              const coral = i % 2 === 1
-              const inner = (
-                <div
-                  className={`flex items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/[0.05] ${
-                    coral ? 'hover:border-claude-500/40' : 'hover:border-brand-500/40'
-                  }`}
-                >
-                  <div
-                    className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ring-1 ${
-                      coral ? 'bg-claude-500/10 text-claude-400 ring-claude-500/20' : 'bg-brand-500/10 text-brand-300 ring-brand-500/20'
-                    }`}
-                  >
-                    {Icon && <Icon width={22} height={22} />}
-                  </div>
-                  <div className="min-w-0">
-                    <p
-                      className={`text-xs font-semibold uppercase tracking-wider ${
-                        coral ? 'text-claude-400' : 'text-brand-300'
-                      }`}
-                    >
-                      {c.label}
-                    </p>
-                    <p className="mt-0.5 break-words font-medium text-white">{c.value}</p>
+      <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
+        <div className="grid items-start gap-16 lg:grid-cols-2 lg:gap-10">
+          {/* ---------------- LEFT ---------------- */}
+          <div className="relative">
+            <div className="relative mx-auto w-full max-w-[32rem] lg:mx-0 lg:-mt-16 lg:w-[145%] lg:max-w-none lg:-ml-[52%]">
+              <Suspense
+                fallback={<div className="aspect-square w-full animate-pulse rounded-full bg-brand-500/5" />}
+              >
+                <GlobeView />
+              </Suspense>
+            </div>
+
+            <Reveal delay={120}>
+              <h3 className="mt-2 font-poppins text-5xl font-extrabold leading-[0.92] tracking-tight text-white sm:text-6xl">
+                Start a
+                <br />
+                conversation.
+              </h3>
+            </Reveal>
+          </div>
+
+          {/* ---------------- RIGHT ---------------- */}
+          <div className="relative flex flex-col justify-start gap-9 lg:pl-6 lg:pt-4">
+            {/* iridescent blob — brand green → white → coral */}
+            <div
+              className="pointer-events-none absolute right-0 top-1/3 h-64 w-40 rotate-12 rounded-[45%] opacity-80 blur-2xl"
+              style={{
+                background:
+                  'radial-gradient(circle at 50% 20%, #1f9c5c 0%, #f8fafc 28%, #dd8563 56%, #008737 84%, transparent 100%)',
+              }}
+            />
+
+            {INFO.map((item, i) => {
+              const Icon = item.icon
+              const Row = (
+                <div className="flex items-start gap-5">
+                  <Icon width={30} height={30} className="mt-1 shrink-0 text-white" />
+                  <div>
+                    <p className="font-poppins text-2xl font-bold text-white">{item.label}</p>
+                    {item.lines.map((l, k) => (
+                      <p key={k} className="mt-1 text-sm leading-relaxed text-white/55">
+                        {l}
+                      </p>
+                    ))}
                   </div>
                 </div>
               )
               return (
-                <Reveal key={c.id} delay={i * 100}>
-                  {c.href ? (
-                    <a
-                      href={c.href}
-                      target={c.icon === 'linkedin' ? '_blank' : undefined}
-                      rel="noreferrer"
-                      className="block"
-                    >
-                      {inner}
+                <Reveal key={item.label} delay={i * 120}>
+                  {item.href ? (
+                    <a href={item.href} className="block transition-opacity hover:opacity-80">
+                      {Row}
                     </a>
                   ) : (
-                    inner
+                    Row
                   )}
                 </Reveal>
               )
             })}
-          </div>
 
-          {/* Right: form */}
-          {/* <div className="rounded-3xl border border-brand-100 bg-white p-7 sm:p-9 shadow-sm">
-            <form onSubmit={onSubmit} className="space-y-5">
-              <div>
-                <label htmlFor="name" className="mb-1.5 block text-sm font-semibold text-brand-800">
-                  Name
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={update}
-                  placeholder="Jane Doe"
-                  className="w-full rounded-xl border border-brand-100 bg-brand-50/30 px-4 py-3 text-sm text-brand-900 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-300/40"
-                />
+            {/* Follow us */}
+            <Reveal delay={360}>
+              <div className="flex items-start gap-5">
+                <ThumbsUp width={30} height={30} className="mt-1 shrink-0 text-white" />
+                <div>
+                  <p className="font-poppins text-2xl font-bold text-white">Follow Us</p>
+                  <div className="mt-3 flex items-center gap-3">
+                    {SOCIALS.map((s) => {
+                      const SIcon = s.icon
+                      return (
+                        <a
+                          key={s.label}
+                          href={s.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={s.label}
+                          className="grid h-10 w-10 place-items-center rounded-full bg-white text-black transition-transform hover:-translate-y-0.5 hover:bg-white/90"
+                        >
+                          <SIcon width={18} height={18} />
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
-              <div>
-                <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-brand-800">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={form.email}
-                  onChange={update}
-                  placeholder="jane@company.com"
-                  className="w-full rounded-xl border border-brand-100 bg-brand-50/30 px-4 py-3 text-sm text-brand-900 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-300/40"
-                />
+            </Reveal>
+
+            {/* dash field */}
+            <Reveal delay={440}>
+              <div className="mt-6 hidden sm:block">
+                <DashField />
               </div>
-              <div>
-                <label htmlFor="message" className="mb-1.5 block text-sm font-semibold text-brand-800">
-                  Message
-                </label>
-                <textarea
-                  id="message"
-                  name="message"
-                  rows={5}
-                  required
-                  value={form.message}
-                  onChange={update}
-                  placeholder="Tell us about your project…"
-                  className="w-full resize-none rounded-xl border border-brand-100 bg-brand-50/30 px-4 py-3 text-sm text-brand-900 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-300/40"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-brand-500 px-6 py-3.5 text-sm font-bold text-white shadow-md shadow-brand-500/25 transition-all hover:bg-brand-600 hover:shadow-lg active:scale-[0.99]"
-              >
-                {sent ? 'Message Sent ✓' : 'Submit'}
-              </button>
-              {sent && (
-                <p className="text-center text-sm font-medium text-brand-600">
-                  Thanks! We'll be in touch shortly.
-                </p>
-              )}
-            </form>
-          </div> */}
+            </Reveal>
+          </div>
         </div>
       </div>
     </section>

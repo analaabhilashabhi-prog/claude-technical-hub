@@ -6,9 +6,19 @@ import { bookingForms, emptyFormFor, validateForm } from '../data/bookingForms'
 import { Arrow, Check, Close, Calendar } from './Icons'
 import { useOutsideClick } from '../hooks/useOutsideClick'
 import { HeroHighlight } from './HeroHighlight'
+import { MultiStepLoader } from './MultiStepLoader'
 import logo from '../assets/darklogo.png'
 
 const cfg = bookingForms.webinar
+
+const REGISTER_STEPS = [
+  { text: 'Validating your details' },
+  { text: 'Reserving your spot' },
+  { text: 'Saving your registration' },
+  { text: 'Sending your confirmation' },
+  { text: "You're all set!" },
+]
+const STEP_MS = 650
 
 // Poster: real image if provided, else a grey gradient with the session initial.
 function PosterBg({ w, small }) {
@@ -49,7 +59,7 @@ function RegisterForm({ w, onDone }) {
   const [form, setForm] = useState(() => emptyFormFor(cfg))
   const [errors, setErrors] = useState({})
   const [done, setDone] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
 
   const set = (name, val) => setForm((f) => ({ ...f, [name]: val }))
@@ -66,16 +76,18 @@ function RegisterForm({ w, onDone }) {
       sessionDate: w.date,
       submittedAt: new Date().toISOString(),
     }
-    setSubmitting(true)
+    setLoading(true)
     setSaveError('')
+    // Run the multi-step loader for its full length while the request completes.
+    const minRun = new Promise((r) => setTimeout(r, STEP_MS * REGISTER_STEPS.length))
     try {
-      await createBooking('webinar', record)
+      await Promise.all([createBooking('webinar', record), minRun])
+      setLoading(false)
       setDone(true)
     } catch (err) {
       console.error('[register] save failed →', err)
+      setLoading(false)
       setSaveError('Could not register right now. Please try again in a moment.')
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -100,6 +112,8 @@ function RegisterForm({ w, onDone }) {
   }
 
   return (
+    <>
+    <MultiStepLoader loadingStates={REGISTER_STEPS} loading={loading} duration={STEP_MS} loop={false} />
     <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-3.5 px-6 pb-8 pt-2 sm:grid-cols-2">
       <p className="text-sm text-white/55 sm:col-span-2">All fields are required.</p>
       {cfg.fields.map((f) => (
@@ -124,13 +138,14 @@ function RegisterForm({ w, onDone }) {
       {saveError && <p className="text-sm text-red-400 sm:col-span-2">{saveError}</p>}
       <button
         type="submit"
-        disabled={submitting}
+        disabled={loading}
         className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-60 sm:col-span-2"
       >
-        {submitting ? 'Registering…' : 'Confirm Registration'}
-        {!submitting && <Arrow className="h-4 w-4" />}
+        Confirm Registration
+        <Arrow className="h-4 w-4" />
       </button>
     </form>
+    </>
   )
 }
 
@@ -139,6 +154,7 @@ export default function WebinarsPage() {
   const [active, setActive] = useState(null) // selected webinar or null
   const [stage, setStage] = useState('detail') // detail | register
   const [sessions, setSessions] = useState([])
+  const [hovered, setHovered] = useState(null) // card being hovered (spotlight)
   const ref = useRef(null)
 
   const close = () => setActive(null)
@@ -192,6 +208,7 @@ export default function WebinarsPage() {
 
       {/* header + grid */}
       <div className="relative z-10 w-full px-6 py-16 sm:px-10 sm:py-20 lg:px-16 xl:px-24">
+        <div className={`transition-all duration-300 ${hovered ? 'opacity-30 blur-[2px]' : ''}`}>
         <div className="flex flex-wrap items-center gap-4">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-white/70 backdrop-blur">
             <span className="relative flex h-2 w-2">
@@ -216,14 +233,26 @@ export default function WebinarsPage() {
           details and grab your spot.
         </p>
         <div className="mt-8 h-px w-full bg-gradient-to-r from-white/15 via-white/5 to-transparent" />
+        </div>
 
         <ul className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {sessions.map((w) => (
             <motion.div
               layoutId={`card-${w.id}`}
               key={w.id}
-              onClick={() => open(w)}
-              className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/60 backdrop-blur-md transition-colors hover:border-white/25 hover:bg-neutral-900/70"
+              onMouseEnter={() => setHovered(w.id)}
+              onMouseLeave={() => setHovered(null)}
+              onClick={() => {
+                setHovered(null)
+                open(w)
+              }}
+              className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-3xl border backdrop-blur-md transition-all duration-300 ${
+                hovered === w.id
+                  ? 'z-10 -translate-y-1 scale-[1.03] border-claude-400/50 bg-neutral-900/40 shadow-[0_0_60px_-8px_rgba(217,119,87,0.55)] ring-1 ring-claude-400/40'
+                  : hovered
+                    ? 'scale-[0.98] border-white/10 bg-neutral-900/60 opacity-30 blur-[2px]'
+                    : 'border-white/10 bg-neutral-900/60 hover:border-white/25'
+              }`}
             >
               <motion.div layoutId={`image-${w.id}`} className="aspect-[5/4] w-full">
                 <PosterBg w={w} />
@@ -248,7 +277,11 @@ export default function WebinarsPage() {
         </ul>
 
         {/* bottom CTA band */}
-        <div className="relative mt-14 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-8 sm:p-12">
+        <div
+          className={`relative mt-14 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-8 transition-all duration-300 sm:p-12 ${
+            hovered ? 'opacity-30 blur-[2px]' : ''
+          }`}
+        >
           <div className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 rounded-full bg-claude-500/10 blur-3xl" />
           <div className="relative flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
             <div>

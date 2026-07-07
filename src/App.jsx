@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { BookingProvider } from './context/BookingContext'
 import Navbar from './components/Navbar'
 import HeroCarousel from './components/HeroCarousel'
+import PartnerMarquee from './components/PartnerMarquee'
 import Architects from './components/Architects'
 import Services from './components/Services'
 import AssociatedWith from './components/AssociatedWith'
@@ -61,6 +62,7 @@ export default function App() {
           <SectionReveal variant="blur">
             <HeroCarousel />
           </SectionReveal>
+          <PartnerMarquee />
           <SectionReveal variant="slide-right">
             <Services />
           </SectionReveal>

@@ -21,6 +21,10 @@
   font-family: 'Syne', 'Inter', sans-serif;
 }
 
+.font-poppins {
+  font-family: 'Poppins', 'Inter', sans-serif;
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;

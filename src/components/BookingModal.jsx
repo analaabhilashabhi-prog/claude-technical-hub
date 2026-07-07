@@ -4,6 +4,26 @@ import { bookingForms, emptyFormFor, validateForm } from '../data/bookingForms'
 import { createBooking } from '../data/api'
 import { Close, Check } from './Icons'
 import { HeroHighlight } from './HeroHighlight'
+import { MultiStepLoader } from './MultiStepLoader'
+
+// Multi-step loader copy per flow.
+const LOADER_STEPS = {
+  webinar: [
+    { text: 'Validating your details' },
+    { text: 'Reserving your slot' },
+    { text: 'Saving your request' },
+    { text: 'Sending your confirmation' },
+    { text: "You're all set!" },
+  ],
+  aiLab: [
+    { text: 'Reviewing your organization details' },
+    { text: 'Matching your lab requirements' },
+    { text: 'Notifying our solutions team' },
+    { text: 'Preparing your proposal' },
+    { text: 'Request received!' },
+  ],
+}
+const STEP_MS = 650
 
 export default function BookingModal() {
   const { type, closeBooking } = useBooking()
@@ -14,6 +34,7 @@ export default function BookingModal() {
   const [touched, setTouched] = useState({})
   const [done, setDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
 
   // Reset whenever the booking type changes + lock body scroll while open.
@@ -25,6 +46,7 @@ export default function BookingModal() {
       setDone(false)
       setSaveError('')
       setSubmitting(false)
+      setLoading(false)
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -71,13 +93,19 @@ export default function BookingModal() {
     record.type = cfg.id
     record.submittedAt = new Date().toISOString()
 
+    const steps = LOADER_STEPS[cfg.id] || LOADER_STEPS.webinar
     setSubmitting(true)
+    setLoading(true)
     setSaveError('')
+    // Let the multi-step loader play through while the request completes.
+    const minRun = new Promise((r) => setTimeout(r, STEP_MS * steps.length))
     try {
-      await createBooking(cfg.id, record)
+      await Promise.all([createBooking(cfg.id, record), minRun])
+      setLoading(false)
       setDone(true)
     } catch (err) {
       console.error(`[Booking:${cfg.id}] save failed →`, err)
+      setLoading(false)
       setSaveError('Could not submit right now. Please try again in a moment.')
     } finally {
       setSubmitting(false)
@@ -87,6 +115,13 @@ export default function BookingModal() {
   const HeaderIcon = cfg.icon
 
   return (
+    <>
+    <MultiStepLoader
+      loadingStates={LOADER_STEPS[cfg.id] || LOADER_STEPS.webinar}
+      loading={loading}
+      duration={STEP_MS}
+      loop={false}
+    />
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
       role="dialog"
@@ -171,6 +206,7 @@ export default function BookingModal() {
        </HeroHighlight>
       </div>
     </div>
+    </>
   )
 }
 
@@ -179,7 +215,7 @@ function Field({ field, value, error, onChange, onBlur }) {
   const isTextarea = field.type === 'textarea'
   const isSelect = field.type === 'select'
 
-  const inputClass = `w-full rounded-xl border bg-white/[0.04] pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:bg-white/[0.07] focus:ring-2 ${
+  const inputClass = `w-full rounded-xl border bg-white/[0.04] backdrop-blur-md pl-10 pr-4 py-3 text-sm text-white placeholder:text-white/30 outline-none transition focus:bg-white/[0.07] focus:ring-2 ${
     error
       ? 'border-claude-500/60 focus:border-claude-500 focus:ring-claude-500/30'
       : 'border-white/10 focus:border-brand-400/70 focus:ring-brand-500/25'
