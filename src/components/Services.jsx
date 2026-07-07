@@ -4,12 +4,16 @@ import { Check, Mail } from './Icons'
 import ScreenCarousel from './ScreenCarousel'
 import ScrollFloat from './ScrollFloat'
 import frame from '../assets/desktop-frame.png'
-import figure from '../assets/desktop-figure.png'
+import claudeMark from '../assets/claude-logo.svg'
+import aiReadyLogo from '../assets/ai-ready-engineer.png'
 
 const INK = '#211c19'
 const SUB = '#6f665f'
 const ACCENT = '#d97757'
 const ACCENT_SOFT = 'rgba(217,119,87,0.12)'
+
+// Services that show a brand logo on the monitor instead of a text title.
+const SERVICE_LOGOS = { 'ai-ready-engineer': aiReadyLogo }
 
 const accentFor = (i) =>
   i % 2 === 0
@@ -25,6 +29,7 @@ const splitTitle = (t) => {
 // One on-screen slide (authored at 1000x566, scaled by the carousel).
 function ScreenContent({ service }) {
   const [t1, t2] = splitTitle(service.title)
+  const logo = SERVICE_LOGOS[service.id]
   return (
     <>
       {/* soft decorative circle on the right */}
@@ -34,26 +39,44 @@ function ScreenContent({ service }) {
       />
 
       <div style={{ position: 'absolute', left: 60, top: 54, width: 560 }}>
-        <span
-          style={{
-            display: 'inline-block',
-            border: '1.5px solid rgba(0,0,0,0.16)',
-            borderRadius: 9999,
-            padding: '7px 18px',
-            fontSize: 13,
-            fontWeight: 700,
-            letterSpacing: 3,
-            textTransform: 'uppercase',
-            color: SUB,
-          }}
-        >
-          Now Offering
-        </span>
+        {logo ? (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: INK,
+              borderRadius: 24,
+              padding: '30px 40px',
+              boxShadow: '0 22px 50px rgba(0,0,0,0.22)',
+            }}
+          >
+            <img src={logo} alt={service.title} style={{ width: 420, height: 'auto', display: 'block' }} />
+          </div>
+        ) : (
+          <>
+            <span
+              style={{
+                display: 'inline-block',
+                border: '1.5px solid rgba(0,0,0,0.16)',
+                borderRadius: 9999,
+                padding: '7px 18px',
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: 3,
+                textTransform: 'uppercase',
+                color: SUB,
+              }}
+            >
+              Now Offering
+            </span>
 
-        <div style={{ marginTop: 20, fontWeight: 800, lineHeight: 1.0, letterSpacing: -1 }}>
-          <span style={{ display: 'block', fontSize: 62, color: INK }}>{t1}</span>
-          {t2 && <span style={{ display: 'block', fontSize: 62, color: ACCENT }}>{t2}</span>}
-        </div>
+            <div style={{ marginTop: 20, fontWeight: 800, lineHeight: 1.0, letterSpacing: -1 }}>
+              <span style={{ display: 'block', fontSize: 62, color: INK }}>{t1}</span>
+              {t2 && <span style={{ display: 'block', fontSize: 62, color: ACCENT }}>{t2}</span>}
+            </div>
+          </>
+        )}
 
         <ul style={{ marginTop: 30 }}>
           {service.points.map((p) => (
@@ -108,7 +131,7 @@ function ScreenContent({ service }) {
           </span>
           <div style={{ fontSize: 13.5, color: SUB, lineHeight: 1.5 }}>
             Interested? Write to us at{' '}
-            <span style={{ fontWeight: 700, color: ACCENT }}>contact@technicalhub.io</span> and mention{' '}
+            <span style={{ fontWeight: 700, color: ACCENT }}>support@technicalhub.io</span> and mention{' '}
             <span style={{ fontWeight: 700, color: INK }}>{service.title}</span> in your subject.
           </div>
         </div>
@@ -123,12 +146,12 @@ export default function Services() {
   const a = accentFor(active)
 
   return (
-    <section id="services" className="relative min-h-screen w-full overflow-hidden bg-black">
+    <section id="services" className="relative w-full overflow-hidden bg-black pb-12 pt-0 sm:pb-16">
       {/* soft glows */}
       <div className="pointer-events-none absolute left-0 top-1/4 h-96 w-96 rounded-full bg-brand-500/10 blur-[150px]" />
       <div className="pointer-events-none absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-claude-500/10 blur-[150px]" />
 
-      <div className="relative z-10 flex min-h-screen flex-col items-center gap-12 px-6 py-24 lg:flex-row lg:items-center lg:gap-12 lg:px-10 lg:py-0">
+      <div className="relative z-10 flex flex-col items-center gap-12 px-6 lg:flex-row lg:items-center lg:gap-12 lg:px-10">
         {/* Left: monitor with the draggable on-screen info + figure */}
         <div className="order-2 w-full lg:order-1 lg:w-[58%] lg:shrink-0">
           <div className="relative w-full max-w-[980px]">
@@ -151,12 +174,12 @@ export default function Services() {
                 renderItem={(sv) => <ScreenContent service={sv} />}
               />
 
-              {/* figure overlay — hand pokes out the right */}
+              {/* Claude symbol — centered inside the cream circle on the right */}
               <img
-                src={figure}
-                alt="Anthropic"
-                className="pointer-events-none absolute bottom-0 h-full w-auto select-none"
-                style={{ right: '-6%' }}
+                src={claudeMark}
+                alt="Claude"
+                className="animate-floaty pointer-events-none absolute select-none drop-shadow-[0_18px_40px_rgba(217,119,87,0.35)]"
+                style={{ right: '7%', top: '26%', width: '26%' }}
               />
             </div>
           </div>
@@ -165,33 +188,30 @@ export default function Services() {
         {/* Right: heading + full info, synced to the active service */}
         <div className="order-1 w-full lg:order-2 lg:w-[40%] lg:self-start lg:pt-6">
           <ScrollFloat
-            containerClassName="mb-28 text-6xl font-extrabold leading-[0.95] tracking-tight text-white sm:text-7xl lg:text-8xl"
+            containerClassName="mb-8 mt-10 text-6xl font-extrabold leading-[0.95] tracking-tight text-claude-400 sm:text-7xl lg:mt-20 lg:text-8xl"
             stagger={0.04}
           >
             Our Services
           </ScrollFloat>
 
           <div key={active} className="animate-fadeUp">
-            <span className="text-xs font-bold uppercase tracking-[0.25em] text-white/60">
-              Now Offering
-            </span>
-            <h3 className="mt-2 font-serif text-4xl font-bold uppercase leading-[1.05] tracking-tight text-white sm:text-5xl">
+            <h3 className="font-serif text-4xl font-bold uppercase leading-[1.05] tracking-tight text-brand-300 sm:text-5xl">
               {s.title}
             </h3>
 
-            <ul className="mt-6 space-y-2.5">
+            <ul className="mt-7 space-y-4">
               {s.points.map((p) => (
-                <li key={p} className="flex items-start gap-3 text-sm text-white/70 sm:text-base">
-                  <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${a.pill}`} />
+                <li key={p} className="flex items-start gap-3.5 text-lg text-white/80 sm:text-xl">
+                  <span className={`mt-2.5 h-2 w-2 shrink-0 rounded-full ${a.pill}`} />
                   {p}
                 </li>
               ))}
             </ul>
 
-            <p className="mt-7 max-w-md text-sm italic leading-relaxed text-white/45">
+            <p className="mt-8 max-w-lg text-base italic leading-relaxed text-white/55 sm:text-lg">
               Interested? Write to us at{' '}
               <a href="#contact" className={`not-italic font-semibold ${a.text} hover:underline`}>
-                contact@technicalhub.io
+                support@technicalhub.io
               </a>{' '}
               and mention <span className="not-italic font-semibold text-white/70">{s.title}</span> in your subject.
             </p>

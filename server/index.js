@@ -11,6 +11,7 @@ import cors from 'cors'
 import mongoose from 'mongoose'
 import { Webinar, Booking } from './models.js'
 import { seedWebinars } from './seed.js'
+import { sendWebinarConfirmation } from './mailer.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.join(__dirname, '..', 'dist')
@@ -79,6 +80,13 @@ app.post('/api/bookings/:type', async (req, res, next) => {
     const submittedAt = data.submittedAt ? new Date(data.submittedAt) : new Date()
     await Booking.create({ type: req.params.type, data, submittedAt })
     res.status(201).json({ ok: true })
+
+    // Fire-and-forget confirmation email for webinar registrations.
+    if (req.params.type === 'webinar') {
+      sendWebinarConfirmation(data).catch((err) =>
+        console.error('[mailer] send failed →', err.message)
+      )
+    }
   } catch (e) {
     next(e)
   }

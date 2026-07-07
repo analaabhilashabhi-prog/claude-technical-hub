@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { bookingForms } from '../data/bookingForms'
 import { getWebinars, addWebinar, deleteWebinar, slugify } from '../data/webinarStore'
 import { listBookings, clearBookings } from '../data/api'
-import { Calendar, Cube, Close, Check } from './Icons'
+import { Calendar, Cube, Close, Check, Pencil } from './Icons'
 import { HeroHighlight } from './HeroHighlight'
 import logo from '../assets/darklogo.png'
 
@@ -212,6 +212,14 @@ export default function AdminPage() {
 
 /* ---------------- Webinar Library manager ---------------- */
 const KINDS = ['Webinar', 'Workshop']
+const FILTERS = [
+  ['all', 'All'],
+  ['prev', 'Previous'],
+  ['this', 'This month'],
+  ['next', 'Next month'],
+]
+const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1))
+const MINUTES = ['00', '15', '30', '45']
 const emptySession = {
   kind: 'Webinar',
   title: '',
@@ -219,10 +227,21 @@ const emptySession = {
   role: '',
   date: '',
   dateISO: '',
-  time: '',
+  startH: '5',
+  startM: '00',
+  ampm: 'PM',
+  duration: '90 min',
+  time: '5:00 PM · 90 min',
+  link: '',
   summary: '',
   description: '',
   poster: '',
+}
+
+// Build the display string from the time parts, e.g. "5:00 PM · 90 min".
+const composeTime = (f) => {
+  const dur = (f.duration || '').trim()
+  return `${f.startH || '12'}:${f.startM || '00'} ${f.ampm || 'PM'}${dur ? ` · ${dur}` : ''}`
 }
 
 const pad = (n) => String(n).padStart(2, '0')
@@ -237,6 +256,25 @@ function formatDisplay(iso) {
   const d = new Date(`${iso}T00:00:00`)
   if (isNaN(d.getTime())) return ''
   return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+}
+// display date ("Aug 12, 2026") → ISO ("2026-08-12"), for editing older sessions.
+function toISOFromDisplay(dateStr) {
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  return toKey(d.getFullYear(), d.getMonth(), d.getDate())
+}
+// time string ("5:00 PM · 90 min") → { startH, startM, ampm, duration } for editing.
+function parseTimeStr(t) {
+  const out = {}
+  const m = (t || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+  if (m) {
+    out.startH = String(Number(m[1]))
+    out.startM = m[2]
+    out.ampm = m[3].toUpperCase()
+  }
+  const d = (t || '').match(/·\s*(.+)$/)
+  if (d) out.duration = d[1].trim()
+  return out
 }
 
 const WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -320,6 +358,9 @@ function LibraryManager() {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [filter, setFilter] = useState('all')
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const fileRef = useRef(null)
 
   useEffect(() => {
@@ -332,6 +373,13 @@ function LibraryManager() {
 
   const set = (name, val) => setForm((f) => ({ ...f, [name]: val }))
   const setDate = (iso) => setForm((f) => ({ ...f, dateISO: iso, date: formatDisplay(iso) }))
+  // Update a time part and recompute the display string.
+  const setTimePart = (part, val) =>
+    setForm((f) => {
+      const next = { ...f, [part]: val }
+      next.time = composeTime(next)
+      return next
+    })
 
   const onPoster = (e) => {
     const file = e.target.files?.[0]
@@ -341,6 +389,31 @@ function LibraryManager() {
     reader.readAsDataURL(file)
   }
 
+  const openCreate = (dateISO = '') => {
+    setEditingId(null)
+    setError('')
+    setForm(dateISO ? { ...emptySession, dateISO, date: formatDisplay(dateISO) } : emptySession)
+    if (fileRef.current) fileRef.current.value = ''
+    setShowForm(true)
+  }
+
+  const openEdit = (w) => {
+    setEditingId(w.id)
+    setError('')
+    const dateISO = w.dateISO || toISOFromDisplay(w.date)
+    setForm({
+      ...emptySession,
+      ...w,
+      dateISO,
+      date: w.date || formatDisplay(dateISO),
+      ...parseTimeStr(w.time),
+    })
+    if (fileRef.current) fileRef.current.value = ''
+    setShowForm(true)
+  }
+
+  const closeForm = () => setShowForm(false)
+
   const submit = async (e) => {
     e.preventDefault()
     if (!form.title.trim() || !form.presenter.trim() || !form.date.trim() || !form.description.trim()) {
@@ -348,21 +421,17 @@ function LibraryManager() {
       return
     }
     setError('')
-    const session = {
-      ...form,
-      id: `${slugify(form.title)}-${Date.now().toString(36)}`,
-    }
+    const session = { ...form, id: editingId || `${slugify(form.title)}-${Date.now().toString(36)}` }
     setSaving(true)
     try {
       const next = await addWebinar(session)
       setList(next)
-      setForm(emptySession)
-      if (fileRef.current) fileRef.current.value = ''
-      setSaved(true)
+      setShowForm(false)
+      setSaved(editingId ? 'updated' : 'created')
       setTimeout(() => setSaved(false), 2500)
     } catch (err) {
-      console.error('[admin] publish failed →', err)
-      setError('Could not publish — is the API server running?')
+      console.error('[admin] save failed →', err)
+      setError('Could not save — is the API server running?')
     } finally {
       setSaving(false)
     }
@@ -378,22 +447,151 @@ function LibraryManager() {
   }
 
   const input =
-    'w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-400/60'
+    'w-full rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-400/60'
+
+  // Bucket each session into prev / this / next month relative to today.
+  const now = new Date()
+  const cy = now.getFullYear()
+  const cm = now.getMonth()
+  const nm = cm === 11 ? 0 : cm + 1
+  const nmy = cm === 11 ? cy + 1 : cy
+  const bucketOf = (w) => {
+    const k = sessionDateKey(w)
+    if (!k) return 'other'
+    const [y, mo] = k.split('-').map(Number)
+    const m = mo - 1
+    if (y < cy || (y === cy && m < cm)) return 'prev'
+    if (y === cy && m === cm) return 'this'
+    if (y === nmy && m === nm) return 'next'
+    return 'other'
+  }
+  const counts = { all: list.length, prev: 0, this: 0, next: 0 }
+  list.forEach((w) => {
+    const b = bucketOf(w)
+    if (counts[b] !== undefined) counts[b] += 1
+  })
+  const filtered = filter === 'all' ? list : list.filter((w) => bucketOf(w) === filter)
 
   return (
-    <HeroHighlight containerClassName="rounded-3xl border border-white/10 bg-black/40 p-5 sm:p-8" radius={200}>
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_1.1fr]">
-        {/* Add form */}
-        <div>
-          <h1 className="text-2xl font-bold text-white">Add a session</h1>
-          <p className="mt-1 text-sm text-white/50">Publish a webinar or workshop — it appears instantly in the register flow.</p>
+    <>
+      <HeroHighlight containerClassName="rounded-3xl border border-white/10 bg-black/40 p-5 sm:p-8" radius={200}>
+        {/* header + create button */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              Webinar Library <span className="text-white/40">({list.length})</span>
+            </h1>
+            <p className="mt-1 text-sm text-white/50">Your published webinars &amp; workshops — click a card to edit it.</p>
+          </div>
+          <button
+            onClick={() => openCreate()}
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-5 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5"
+          >
+            <span className="text-lg leading-none">+</span> Create a session
+          </button>
+        </div>
 
-          <form onSubmit={submit} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* poster */}
+        {saved && (
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-500/15 px-4 py-2 text-sm font-semibold text-brand-300 ring-1 ring-brand-500/30">
+            <Check className="h-4 w-4" /> Session {saved === 'updated' ? 'updated' : 'created'}!
+          </div>
+        )}
+
+        {/* filters */}
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          {FILTERS.map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setFilter(k)}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                filter === k
+                  ? 'bg-white text-black'
+                  : 'border border-white/10 bg-white/[0.03] text-white/70 hover:text-white'
+              }`}
+            >
+              {label} <span className={filter === k ? 'text-black/50' : 'text-white/30'}>({counts[k]})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* sessions */}
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-white">
+            Sessions <span className="text-white/40">({filtered.length})</span>
+          </h2>
+          {filtered.length === 0 && (
+            <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] py-10 text-center text-sm text-white/40">
+              No sessions in this range.
+            </p>
+          )}
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filtered.map((w) => (
+                <div
+                  key={w.id}
+                  className="group relative overflow-hidden rounded-2xl border border-white/10 bg-neutral-900/50 backdrop-blur-md transition hover:border-white/25"
+                >
+                  <div className="relative h-28 w-full overflow-hidden bg-gradient-to-br from-neutral-800 to-black">
+                    {w.poster ? (
+                      <img src={w.poster} alt={w.title} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="absolute -bottom-3 right-1 text-6xl font-black text-white/10">{w.title.charAt(0)}</span>
+                    )}
+                    <span className="absolute left-2.5 top-2.5 rounded-full bg-black/40 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-white backdrop-blur">
+                      {w.kind}
+                    </span>
+                    <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition group-hover:opacity-100">
+                      <button
+                        onClick={() => openEdit(w)}
+                        title="Edit"
+                        className="grid h-7 w-7 place-items-center rounded-full bg-black/50 text-white/80 hover:bg-brand-500/80 hover:text-white"
+                      >
+                        <Pencil width={13} height={13} />
+                      </button>
+                      <button
+                        onClick={() => remove(w.id)}
+                        title="Remove"
+                        className="grid h-7 w-7 place-items-center rounded-full bg-black/50 text-white/80 hover:bg-red-500/70"
+                      >
+                        <Close width={14} height={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <button onClick={() => openEdit(w)} className="block w-full p-3 text-left">
+                    <p className="line-clamp-1 text-sm font-bold text-white">{w.title}</p>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-white/50">
+                      {w.presenter} · {w.date}
+                    </p>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+      </HeroHighlight>
+
+      {/* create / edit modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={closeForm} />
+          <div className="relative my-8 w-full max-w-2xl rounded-3xl border border-white/10 bg-neutral-950 p-6 sm:p-8">
+            <button
+              onClick={closeForm}
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
+            >
+              <Close width={18} height={18} />
+            </button>
+            <h2 className="text-2xl font-bold text-white">{editingId ? 'Edit session' : 'Create a session'}</h2>
+            <p className="mt-1 text-sm text-white/50">
+              {editingId
+                ? 'Update the details and save your changes.'
+                : 'Publish a webinar or workshop — it appears instantly in the register flow.'}
+            </p>
+
+            <form onSubmit={submit} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* poster */}
             <div className="sm:col-span-2">
               <label className="mb-1.5 block text-sm font-semibold text-white/80">Poster image</label>
               <div className="flex items-center gap-4">
-                <div className="h-24 w-32 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+                <div className="h-24 w-32 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-md">
                   {form.poster ? (
                     <img src={form.poster} alt="poster" className="h-full w-full object-cover" />
                   ) : (
@@ -433,7 +631,66 @@ function LibraryManager() {
             <Text label="Title" full value={form.title} onChange={(v) => set('title', v)} placeholder="Claude Foundations for Educators" cls={input} />
             <Text label="Presenter" value={form.presenter} onChange={(v) => set('presenter', v)} placeholder="Bobby Pamarthi" cls={input} />
             <Text label="Presenter role" value={form.role} onChange={(v) => set('role', v)} placeholder="Head of AI Training" cls={input} />
-            <Text label="Time / duration" full value={form.time} onChange={(v) => set('time', v)} placeholder="5:00 PM IST · 90 min" cls={input} />
+
+            {/* Start time — hour : minute + AM/PM */}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-white/80">Start time</label>
+              <div className="flex gap-2">
+                <select
+                  value={form.startH}
+                  onChange={(e) => setTimePart('startH', e.target.value)}
+                  className={`${input} appearance-none`}
+                  aria-label="Hour"
+                >
+                  {HOURS.map((h) => (
+                    <option key={h} value={h} className="text-black">
+                      {h}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={form.startM}
+                  onChange={(e) => setTimePart('startM', e.target.value)}
+                  className={`${input} appearance-none`}
+                  aria-label="Minute"
+                >
+                  {MINUTES.map((m) => (
+                    <option key={m} value={m} className="text-black">
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={form.ampm}
+                  onChange={(e) => setTimePart('ampm', e.target.value)}
+                  className={`${input} appearance-none`}
+                  aria-label="AM or PM"
+                >
+                  <option value="AM" className="text-black">
+                    AM
+                  </option>
+                  <option value="PM" className="text-black">
+                    PM
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            {/* Duration */}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-white/80">Duration</label>
+              <input
+                value={form.duration}
+                onChange={(e) => setTimePart('duration', e.target.value)}
+                placeholder="90 min"
+                className={input}
+              />
+            </div>
+
+            <p className="-mt-1 text-xs text-white/40 sm:col-span-2">
+              Shown on the card as: <span className="font-semibold text-white/70">{form.time}</span>
+            </p>
+            <Text label="Webinar link" full value={form.link} onChange={(v) => set('link', v)} placeholder="https://zoom.us/j/…  ·  Teams / Google Meet link" cls={input} />
             <Text label="Short summary" full value={form.summary} onChange={(v) => set('summary', v)} placeholder="One line shown on the card" cls={input} />
             <div className="sm:col-span-2">
               <label className="mb-1.5 block text-sm font-semibold text-white/80">Description</label>
@@ -446,65 +703,20 @@ function LibraryManager() {
               />
             </div>
 
-            {error && <p className="text-sm text-claude-400 sm:col-span-2">{error}</p>}
+              {error && <p className="text-sm text-claude-400 sm:col-span-2">{error}</p>}
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-60 sm:col-span-2"
-            >
-              {saving ? (
-                'Publishing…'
-              ) : saved ? (
-                <>
-                  <Check className="h-4 w-4" /> Published!
-                </>
-              ) : (
-                'Publish session'
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Calendar + existing list */}
-        <div>
-          <MiniCalendar sessions={list} value={form.dateISO} onSelect={setDate} />
-
-          <h2 className="mt-6 text-lg font-semibold text-white">
-            Library <span className="text-white/40">({list.length})</span>
-          </h2>
-          <div className="mt-4 grid max-h-[70vh] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
-            {list.map((w) => (
-              <div key={w.id} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
-                <div className="relative h-28 w-full overflow-hidden bg-gradient-to-br from-neutral-800 to-black">
-                  {w.poster ? (
-                    <img src={w.poster} alt={w.title} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="absolute -bottom-3 right-1 text-6xl font-black text-white/10">{w.title.charAt(0)}</span>
-                  )}
-                  <span className="absolute left-2.5 top-2.5 rounded-full bg-black/40 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-white backdrop-blur">
-                    {w.kind}
-                  </span>
-                  <button
-                    onClick={() => remove(w.id)}
-                    className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/50 text-white/80 opacity-0 transition group-hover:opacity-100 hover:bg-red-500/70"
-                    title="Remove"
-                  >
-                    <Close width={14} height={14} />
-                  </button>
-                </div>
-                <div className="p-3">
-                  <p className="line-clamp-1 text-sm font-bold text-white">{w.title}</p>
-                  <p className="mt-0.5 text-xs text-white/50">
-                    {w.presenter} · {w.date}
-                  </p>
-                </div>
-              </div>
-            ))}
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-60 sm:col-span-2"
+              >
+                {saving ? 'Saving…' : editingId ? 'Save changes' : 'Publish session'}
+              </button>
+            </form>
           </div>
         </div>
-      </div>
-    </HeroHighlight>
+      )}
+    </>
   )
 }
 

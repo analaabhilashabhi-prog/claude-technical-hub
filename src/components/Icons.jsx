@@ -59,6 +59,9 @@ export const User = (p) => (
 export const Building = (p) => (
   <svg {...base} {...p}><path d="M3 21h18M6 21V5a2 2 0 012-2h8a2 2 0 012 2v16M9 7h1M9 11h1M9 15h1M14 7h1M14 11h1M14 15h1" /></svg>
 )
+export const Pencil = (p) => (
+  <svg {...base} {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+)
 export const ThumbsUp = (p) => (
   <svg {...base} {...p}><path d="M7 10v12" /><path d="M15 5.88L14 10h5.83a2 2 0 011.92 2.56l-2.33 8A2 2 0 0117.5 22H4a2 2 0 01-2-2v-8a2 2 0 012-2h2.76a2 2 0 001.79-1.11L12 2a3 3 0 013 3z" /></svg>
 )
@@ -73,6 +76,9 @@ export const YouTube = (p) => (
 )
 export const Facebook = (p) => (
   <svg {...base} {...p}><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" /></svg>
+)
+export const Globe = (p) => (
+  <svg {...base} {...p}><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></svg>
 )
 
 export const iconMap = {

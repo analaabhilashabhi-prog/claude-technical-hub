@@ -1,5 +1,6 @@
 import { Calendar, Cube } from './Icons'
 import { useBooking } from '../context/BookingContext'
+import logo from '../assets/darklogo.png'
 
 // Non-sticky header: sits at the top of the page and scrolls away with content.
 // Nav links intentionally omitted for now — just the logo + the two CTAs.
@@ -9,8 +10,15 @@ export default function Navbar() {
   return (
     <header className="absolute top-0 inset-x-0 z-50">
       <nav className="w-full px-6 sm:px-10 lg:px-16 xl:px-24">
-        <div className="flex h-20 sm:h-24 items-center justify-end">
-          {/* CTAs — right */}
+        <div className="flex h-20 sm:h-24 items-center justify-between">
+          {/* Logo — left */}
+          <a href="#home" className="flex items-center">
+            <img src={logo} alt="Technical Hub" className="h-8 w-auto sm:h-10" />
+          </a>
+
+          {/* CTAs — right — TEMPORARILY DISABLED (front page only for now).
+              Uncomment to re-activate the Webinar + AI Lab buttons. */}
+          {/*
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -33,6 +41,7 @@ export default function Navbar() {
               <span className="sm:hidden">AI Lab</span>
             </button>
           </div>
+          */}
         </div>
       </nav>
     </header>

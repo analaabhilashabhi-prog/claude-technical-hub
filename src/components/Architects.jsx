@@ -2,12 +2,37 @@ import { architects } from '../data/mockData'
 import Reveal from './Reveal'
 import ScrollFloat from './ScrollFloat'
 import claudeLogo from '../assets/claude-logo.svg'
+import techHubLogo from '../assets/darklogo.png'
 import person from '../assets/team-sample.png'
 import certificate from '../assets/claude-certification.png'
+import harshavardhini from '../assets/trainers/harshavardhini.png'
+import prashat from '../assets/trainers/prashat.png'
+import bobby from '../assets/trainers/bobby.png'
+import peter from '../assets/trainers/peter.png'
+import sudhir from '../assets/trainers/sudhir.png'
+import akhilesh from '../assets/trainers/akhilesh.png'
+import bhargav from '../assets/trainers/bhargav.png'
+import manikanta from '../assets/trainers/manikanta.png'
+import naveen from '../assets/trainers/naveen.png'
+import azar from '../assets/trainers/azar.png'
+
+// architect id → portrait
+const PHOTOS = {
+  1: harshavardhini,
+  2: prashat,
+  3: bobby,
+  4: peter,
+  5: sudhir,
+  6: akhilesh,
+  7: bhargav,
+  8: manikanta,
+  9: naveen,
+  10: azar,
+}
 
 export default function Architects() {
   return (
-    <section id="architects" className="relative flex min-h-screen w-full flex-col justify-center overflow-hidden bg-black py-20">
+    <section id="architects" className="relative flex w-full flex-col justify-center overflow-hidden bg-black py-12 sm:py-16">
       <div className="pointer-events-none absolute left-1/4 top-1/4 h-96 w-96 rounded-full bg-brand-500/10 blur-[150px]" />
       <div className="pointer-events-none absolute right-1/4 bottom-1/3 h-96 w-96 rounded-full bg-claude-500/10 blur-[150px]" />
 
@@ -23,7 +48,7 @@ export default function Architects() {
                 </span>
               </div>
               <ScrollFloat
-                containerClassName="mt-6 text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl"
+                containerClassName="mt-6 text-4xl font-extrabold leading-[1.05] tracking-tight text-brand-300 sm:text-5xl"
                 stagger={0.03}
               >
                 Meet the Claude Architects
@@ -61,7 +86,7 @@ export default function Architects() {
                     {/* portrait */}
                     <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-b from-white/[0.06] to-transparent">
                       <img
-                        src={person}
+                        src={PHOTOS[m.id] || person}
                         alt={m.name}
                         loading="lazy"
                         className="h-full w-full object-cover object-top grayscale transition-all duration-500 ease-out group-hover:scale-[1.06] group-hover:grayscale-0"
@@ -93,6 +118,15 @@ export default function Architects() {
                   <span className="font-semibold text-white/80">Claude Certified Architect</span>{' '}
                   credential from Anthropic.
                 </p>
+
+                {/* Technical Hub logo — pinned to the bottom of the card */}
+                <div className="mt-auto flex justify-center pt-6">
+                  <img
+                    src={techHubLogo}
+                    alt="Technical Hub"
+                    className="h-10 w-auto select-none object-contain opacity-90"
+                  />
+                </div>
               </div>
             </Reveal>
           </div>

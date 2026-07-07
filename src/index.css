@@ -30,10 +30,13 @@
     scroll-behavior: smooth;
     /* offset for sticky navbar when jumping to anchors */
     scroll-padding-top: 80px;
+    /* bigger base so every rem-based text scales up (16px -> 18px) */
+    font-size: 112.5%;
   }
 
   body {
     @apply bg-black text-white/90 font-sans antialiased;
+    font-family: 'Poppins', 'Inter', system-ui, sans-serif;
   }
 
   ::selection {
@@ -58,6 +61,15 @@
 }
 
 @layer utilities {
+  /* brand gradient text — TechnicalHub green → Claude coral */
+  .text-brandgrad {
+    background-image: linear-gradient(100deg, #1f9c5c 0%, #52b788 42%, #dd8563 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
   /* hide scrollbar for the mobile architect carousel */
   .no-scrollbar {
     -ms-overflow-style: none;

@@ -48,20 +48,8 @@ const testimonials = [
 function Card({ t }) {
   return (
     <div className="testi-card">
-      <div>
-        <span className="testi-mark">&ldquo;</span>
-        <p className="testi-quote">{t.quote}</p>
-      </div>
-      <div className="testi-person">
-        <img className="testi-avatar" src={t.avatar} alt={t.name} loading="lazy" />
-        <div>
-          <p className="testi-name">{t.name}</p>
-          <p className="testi-meta">
-            {t.role}
-            {t.company ? ` · ${t.company}` : ''}
-          </p>
-        </div>
-      </div>
+      <span className="testi-mark">&ldquo;</span>
+      <p className="testi-quote">{t.quote}</p>
     </div>
   )
 }
@@ -72,11 +60,11 @@ export default function Testimonials() {
   const duration = `${testimonials.length * 7}s`
 
   return (
-    <section id="testimonials" className="relative overflow-hidden bg-black py-20 sm:py-28">
+    <section id="testimonials" className="relative overflow-hidden bg-black py-12 sm:py-16">
       <div className="mb-14 px-6 sm:px-10 lg:px-16 xl:px-24">
         <p className="text-xs font-bold uppercase tracking-[0.28em] text-claude-400">Testimonials</p>
         <ScrollFloat
-          containerClassName="mt-4 font-syne text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl"
+          containerClassName="mt-4 font-syne text-4xl font-extrabold tracking-tight text-claude-400 sm:text-5xl lg:text-6xl"
           stagger={0.03}
         >
           Trusted by builders

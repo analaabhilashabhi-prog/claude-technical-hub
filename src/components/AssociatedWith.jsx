@@ -3,7 +3,7 @@ import claudeLogo from '../assets/claude-logo.svg'
 
 export default function AssociatedWith() {
   return (
-    <section id="partners" className="relative w-full overflow-hidden bg-black py-20 sm:py-28">
+    <section id="partners" className="relative w-full overflow-hidden bg-black py-12 sm:py-16">
       <div className="pointer-events-none absolute left-1/4 bottom-0 h-72 w-72 rounded-full bg-brand-500/10 blur-3xl" />
       <div className="relative w-full px-6 sm:px-10 lg:px-16 xl:px-24">
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">

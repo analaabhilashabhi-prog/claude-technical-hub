@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import Reveal from './Reveal'
-import { Pin, Phone, Mail, ThumbsUp, LinkedIn, Instagram, YouTube, Facebook } from './Icons'
+import InView from './InView'
+import { Globe, Phone, Mail, ThumbsUp, LinkedIn, Instagram, YouTube, Facebook } from './Icons'
 
 const GlobeView = lazy(() => import('./GlobeView'))
 
@@ -10,29 +11,30 @@ const GlobeView = lazy(() => import('./GlobeView'))
 ------------------------------------------------------------------- */
 const INFO = [
   {
-    icon: Pin,
-    label: 'Address',
-    lines: ['Hyderabad', '4th Floor, Innovation Towers, HITEC City, Hyderabad, India 500081'],
+    icon: Globe,
+    label: 'Website',
+    lines: ['technicalhub.io'],
+    href: 'https://technicalhub.io/',
   },
   {
     icon: Phone,
     label: 'Phone',
-    lines: ['+91 98765 43210'],
-    href: 'tel:+919876543210',
+    lines: ['+91 83438 18181'],
+    href: 'tel:+918343818181',
   },
   {
     icon: Mail,
     label: 'Mail',
-    lines: ['contact@technicalhub.io'],
-    href: 'mailto:contact@technicalhub.io',
+    lines: ['support@technicalhub.io'],
+    href: 'mailto:support@technicalhub.io',
   },
 ]
 
 const SOCIALS = [
-  { icon: LinkedIn, label: 'LinkedIn', href: '#' },
-  { icon: Instagram, label: 'Instagram', href: '#' },
-  { icon: YouTube, label: 'YouTube', href: '#' },
-  { icon: Facebook, label: 'Facebook', href: '#' },
+  { icon: LinkedIn, label: 'LinkedIn', href: 'https://www.linkedin.com/company/technicalhub/' },
+  { icon: Instagram, label: 'Instagram', href: 'https://www.instagram.com/technicalhubio' },
+  { icon: YouTube, label: 'YouTube', href: 'https://www.youtube.com/@technicalhubio' },
+  { icon: Facebook, label: 'Facebook', href: 'https://www.facebook.com/share/1BY1TV8JH9/' },
 ]
 
 // Field of small angled tick-marks (bottom-right decoration).
@@ -61,7 +63,7 @@ function DashField() {
 
 export default function Contact() {
   return (
-    <section id="contact" className="relative overflow-hidden bg-black py-24 sm:py-32">
+    <section id="contact" className="relative overflow-hidden bg-black py-12 sm:py-16">
       {/* brand-green radial glow, top-left + coral accent bottom-right */}
       <div
         className="pointer-events-none absolute -left-40 -top-32 h-[42rem] w-[42rem] rounded-full blur-[120px]"
@@ -77,20 +79,17 @@ export default function Contact() {
           {/* ---------------- LEFT ---------------- */}
           <div className="relative">
             <div className="relative mx-auto w-full max-w-[32rem] lg:mx-0 lg:-mt-16 lg:w-[145%] lg:max-w-none lg:-ml-[52%]">
-              <Suspense
-                fallback={<div className="aspect-square w-full animate-pulse rounded-full bg-brand-500/5" />}
+              <InView
+                rootMargin="250px"
+                fallback={<div className="aspect-square w-full rounded-full bg-brand-500/5" />}
               >
-                <GlobeView />
-              </Suspense>
+                <Suspense
+                  fallback={<div className="aspect-square w-full animate-pulse rounded-full bg-brand-500/5" />}
+                >
+                  <GlobeView />
+                </Suspense>
+              </InView>
             </div>
-
-            <Reveal delay={120}>
-              <h3 className="mt-2 font-poppins text-5xl font-extrabold leading-[0.92] tracking-tight text-white sm:text-6xl">
-                Start a
-                <br />
-                conversation.
-              </h3>
-            </Reveal>
           </div>
 
           {/* ---------------- RIGHT ---------------- */}
@@ -164,6 +163,15 @@ export default function Contact() {
               <div className="mt-6 hidden sm:block">
                 <DashField />
               </div>
+            </Reveal>
+
+            {/* Start a conversation — under the line structure */}
+            <Reveal delay={520}>
+              <h3 className="text-brandgrad mt-4 font-poppins text-5xl font-extrabold leading-[0.92] tracking-tight sm:text-6xl">
+                Start a
+                <br />
+                conversation.
+              </h3>
             </Reveal>
           </div>
         </div>

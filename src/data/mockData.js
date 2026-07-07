@@ -57,12 +57,25 @@ export const architects = [
   { id: 5, name: 'Sudhir', role: 'Curriculum Director' },
   { id: 6, name: 'Akhilesh', role: 'AI Engineer' },
   { id: 7, name: 'Bhargav', role: 'Integration Specialist' },
-  { id: 8, name: 'Kishore', role: 'ML Engineer' },
+  { id: 8, name: 'Manikanta', role: 'ML Engineer' },
   { id: 9, name: 'Naveen', role: 'AI Consultant' },
   { id: 10, name: 'Azar', role: 'Developer Advocate' },
 ]
 
 export const services = [
+  {
+    id: 'ai-ready-engineer',
+    title: 'AI Ready Engineer',
+    description:
+      "The future won't just need engineers — it will need AI Ready Engineers. In collaboration with Torii Minds and Nagarjuna College, a program preparing students for an AI-driven future.",
+    icon: 'spark',
+    points: [
+      'Understand AI and its real-world applications',
+      'Hands-on, practical AI problem solving',
+      'Build confidence with emerging technologies',
+      'From Engineers → To AI Ready Engineers',
+    ],
+  },
   {
     id: 'certification',
     title: 'Claude Certification',
@@ -203,19 +216,19 @@ export const apps = [
     id: 'myna',
     name: 'Myna',
     description:
-      'A conversational learning assistant that guides students through coursework with Claude — answering questions, explaining concepts, and adapting to each learner.',
-    category: 'Education',
-    bg: 'bg-brand-600',
-    link: '#',
+      'Elevate your communication with the Myna app. It not only improves how you connect with interviewers but also accelerates your career growth.',
+    category: 'Communication',
+    bg: 'bg-claude-600',
+    link: 'https://myna.toriiminds.com/',
   },
   {
     id: 'project-space',
     name: 'Project Space',
     description:
-      'A collaborative workspace where teams plan, build, and ship AI projects end to end — with Claude embedded across the workflow.',
+      'An intelligent project collaboration platform for students, mentors, and administrators. A unified dashboard for project info, team profiles, mentor details, progress updates, attendance, and milestones — with domain-wise categorization and real-time status tracking to simplify project monitoring.',
     category: 'Collaboration',
-    bg: 'bg-claude-600',
-    link: '#',
+    bg: 'bg-brand-600',
+    link: 'https://projectspace.technicalhub.io',
   },
 ]
 
@@ -302,7 +315,7 @@ export const webinars = [
 ]
 
 export const contactDetails = [
-  { id: 'email', label: 'Email', value: 'contact@technicalhub.io', href: 'mailto:contact@technicalhub.io', icon: 'mail' },
+  { id: 'email', label: 'Email', value: 'support@technicalhub.io', href: 'mailto:support@technicalhub.io', icon: 'mail' },
   { id: 'mobile', label: 'Mobile', value: '+91 98765 43210', href: 'tel:+919876543210', icon: 'phone' },
   // { id: 'linkedin', label: 'LinkedIn', value: 'linkedin.com/company/technicalhub', href: 'https://linkedin.com/company/technicalhub', icon: 'linkedin' },
   // { id: 'address', label: 'Address', value: '4th Floor, Innovation Towers, HITEC City, Hyderabad, India 500081', href: null, icon: 'pin' },

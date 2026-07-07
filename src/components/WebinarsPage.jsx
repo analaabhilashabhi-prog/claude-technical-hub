@@ -20,6 +20,23 @@ const REGISTER_STEPS = [
 ]
 const STEP_MS = 650
 
+const FILTERS = [
+  ['all', 'All sessions'],
+  ['prev', 'Previous'],
+  ['this', 'This month'],
+  ['next', 'Next month'],
+]
+
+// {year, monthIndex} for a session from dateISO or its display date.
+function sessionYM(w) {
+  if (w.dateISO && /^\d{4}-\d{2}-\d{2}$/.test(w.dateISO)) {
+    const [y, m] = w.dateISO.split('-').map(Number)
+    return { y, m: m - 1 }
+  }
+  const d = new Date(w.date)
+  return isNaN(d.getTime()) ? null : { y: d.getFullYear(), m: d.getMonth() }
+}
+
 // Poster: real image if provided, else a grey gradient with the session initial.
 function PosterBg({ w, small }) {
   return (
@@ -74,6 +91,15 @@ function RegisterForm({ w, onDone }) {
       webinar: w.title,
       kind: w.kind,
       sessionDate: w.date,
+      sessionDateISO: w.dateISO || '',
+      sessionTime: w.time || '',
+      startH: w.startH,
+      startM: w.startM,
+      ampm: w.ampm,
+      duration: w.duration,
+      presenter: w.presenter || '',
+      description: w.description || '',
+      location: w.link || 'Online',
       submittedAt: new Date().toISOString(),
     }
     setLoading(true)
@@ -155,6 +181,7 @@ export default function WebinarsPage() {
   const [stage, setStage] = useState('detail') // detail | register
   const [sessions, setSessions] = useState([])
   const [hovered, setHovered] = useState(null) // card being hovered (spotlight)
+  const [filter, setFilter] = useState('all')
   const ref = useRef(null)
 
   const close = () => setActive(null)
@@ -184,6 +211,27 @@ export default function WebinarsPage() {
     setActive(w)
   }
 
+  // Bucket sessions into prev / this / next month relative to today.
+  const now = new Date()
+  const cy = now.getFullYear()
+  const cm = now.getMonth()
+  const nm = cm === 11 ? 0 : cm + 1
+  const nmy = cm === 11 ? cy + 1 : cy
+  const bucketOf = (w) => {
+    const ym = sessionYM(w)
+    if (!ym) return 'other'
+    if (ym.y < cy || (ym.y === cy && ym.m < cm)) return 'prev'
+    if (ym.y === cy && ym.m === cm) return 'this'
+    if (ym.y === nmy && ym.m === nm) return 'next'
+    return 'other'
+  }
+  const counts = { all: sessions.length, prev: 0, this: 0, next: 0 }
+  sessions.forEach((w) => {
+    const b = bucketOf(w)
+    if (counts[b] !== undefined) counts[b] += 1
+  })
+  const filtered = filter === 'all' ? sessions : sessions.filter((w) => bucketOf(w) === filter)
+
   return (
     <HeroHighlight containerClassName="min-h-screen overflow-hidden bg-black text-white">
       {/* decorative glows */}
@@ -208,35 +256,72 @@ export default function WebinarsPage() {
 
       {/* header + grid */}
       <div className="relative z-10 w-full px-6 py-16 sm:px-10 sm:py-20 lg:px-16 xl:px-24">
-        <div className={`transition-all duration-300 ${hovered ? 'opacity-30 blur-[2px]' : ''}`}>
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-white/70 backdrop-blur">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-claude-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-claude-500" />
-            </span>
-            Live &amp; Upcoming
-          </span>
-          <span className="text-sm text-white/40">
-            {sessions.length} sessions · Free to join · Online
-          </span>
+        <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+          {/* left: heading */}
+          <div className={`transition-all duration-300 ${hovered ? 'opacity-30 blur-[2px]' : ''}`}>
+            <div className="flex flex-wrap items-center gap-4">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs font-bold uppercase tracking-widest text-white/70 backdrop-blur">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-claude-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-claude-500" />
+                </span>
+                Live &amp; Upcoming
+              </span>
+              <span className="text-sm text-white/40">{sessions.length} sessions · Free to join · Online</span>
+            </div>
+
+            <h1 className="mt-6 max-w-4xl text-5xl font-bold leading-[1.02] tracking-tight text-brand-300 sm:text-6xl lg:text-7xl">
+              Webinars &amp; workshops from the{' '}
+              <span className="bg-gradient-to-r from-claude-300 via-claude-400 to-claude-500 bg-clip-text text-transparent">
+                Claude Architects
+              </span>
+            </h1>
+            <p className="mt-5 max-w-xl text-lg text-white/55">
+              Live sessions on Claude — from classroom foundations to full-day build workshops. Tap a card to see the
+              details and grab your spot.
+            </p>
+          </div>
+
+          {/* right: date filters */}
+          <div className={`w-full shrink-0 transition-all duration-300 lg:w-[290px] ${hovered ? 'opacity-30 blur-[2px]' : ''}`}>
+            <p className="mb-3 text-xs font-bold uppercase tracking-widest text-white/40">Filter by date</p>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
+              {FILTERS.map(([k, label]) => (
+                <button
+                  key={k}
+                  onClick={() => setFilter(k)}
+                  className={`flex items-center justify-between rounded-2xl border px-5 py-4 text-left backdrop-blur-md transition-all ${
+                    filter === k
+                      ? 'border-claude-400/50 bg-claude-500/10 shadow-lg shadow-claude-500/10'
+                      : 'border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <span className={`text-base font-semibold ${filter === k ? 'text-white' : 'text-white/80'}`}>
+                    {label}
+                  </span>
+                  <span
+                    className={`ml-3 rounded-full px-2.5 py-1 text-xs font-bold ${
+                      filter === k ? 'bg-claude-500 text-white' : 'bg-white/10 text-white/60'
+                    }`}
+                  >
+                    {counts[k]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <h1 className="mt-6 max-w-4xl text-5xl font-bold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-7xl">
-          Webinars &amp; workshops from the{' '}
-          <span className="bg-gradient-to-r from-claude-300 via-claude-400 to-claude-500 bg-clip-text text-transparent">
-            Claude Architects
-          </span>
-        </h1>
-        <p className="mt-5 max-w-xl text-lg text-white/55">
-          Live sessions on Claude — from classroom foundations to full-day build workshops. Tap a card to see the
-          details and grab your spot.
-        </p>
-        <div className="mt-8 h-px w-full bg-gradient-to-r from-white/15 via-white/5 to-transparent" />
-        </div>
+        <div className="mt-10 h-px w-full bg-gradient-to-r from-white/15 via-white/5 to-transparent" />
+
+        {filtered.length === 0 && (
+          <p className="mt-12 rounded-3xl border border-white/10 bg-white/[0.02] py-16 text-center text-white/40">
+            No sessions in this range.
+          </p>
+        )}
 
         <ul className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {sessions.map((w) => (
+          {filtered.map((w) => (
             <motion.div
               layoutId={`card-${w.id}`}
               key={w.id}
@@ -291,7 +376,7 @@ export default function WebinarsPage() {
               </p>
             </div>
             <a
-              href="mailto:contact@technicalhub.io"
+              href="mailto:support@technicalhub.io"
               className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-bold text-black transition hover:-translate-y-0.5"
             >
               Request a private session

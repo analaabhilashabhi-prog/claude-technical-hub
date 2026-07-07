@@ -10,13 +10,10 @@ import OurWork from './components/OurWork'
 import ClaudePowered from './components/ClaudePowered'
 import Testimonials from './components/Testimonials'
 import Contact from './components/Contact'
-import Footer from './components/Footer'
 import BookingModal from './components/BookingModal'
 import AdminPage from './components/AdminPage'
 import WebinarsPage from './components/WebinarsPage'
-import GradualBlur from './components/GradualBlur'
 import MobileInfo from './components/MobileInfo'
-import SectionReveal from './components/SectionReveal'
 
 // Below this width we show the compact info screen instead of the full landing.
 const SMALL_BREAKPOINT = 768
@@ -59,48 +56,17 @@ export default function App() {
       <div className="min-h-screen overflow-x-clip bg-black">
         <Navbar />
         <main>
-          <SectionReveal variant="blur">
-            <HeroCarousel />
-          </SectionReveal>
+          <HeroCarousel />
           <PartnerMarquee />
-          <SectionReveal variant="slide-right">
-            <Services />
-          </SectionReveal>
-          <SectionReveal variant="fade">
-            <Architects />
-          </SectionReveal>
-          <SectionReveal variant="fade">
-            <AssociatedWith />
-          </SectionReveal>
-          <SectionReveal variant="fade-up">
-            <OurWork />
-          </SectionReveal>
-          <SectionReveal variant="tilt">
-            <ClaudePowered />
-          </SectionReveal>
-          <SectionReveal variant="slide-left">
-            <Testimonials />
-          </SectionReveal>
-          <SectionReveal variant="fade">
-            <Contact />
-          </SectionReveal>
+          <Services />
+          <Architects />
+          <AssociatedWith />
+          {/* photos keep their own scroll-in animation (inside Masonry) */}
+          <OurWork />
+          <ClaudePowered />
+          <Testimonials />
+          <Contact />
         </main>
-        <SectionReveal variant="fade-up">
-          <Footer />
-        </SectionReveal>
-
-        {/* page-wide scroll blur at the bottom edge (below the modal z) */}
-        <GradualBlur
-          target="page"
-          position="bottom"
-          height="6rem"
-          strength={2}
-          divCount={5}
-          curve="bezier"
-          exponential
-          opacity={1}
-          style={{ zIndex: 60 }}
-        />
 
         <BookingModal />
       </div>

@@ -64,9 +64,11 @@ const sampleArcs = [
 ]
 
 export default function GlobeView() {
+  // Fewer arcs = lighter per-frame cost (kept a representative subset).
+  const arcs = sampleArcs.filter((_, i) => i % 2 === 0)
   return (
     <div className="relative aspect-square w-full">
-      <World data={sampleArcs} globeConfig={globeConfig} />
+      <World data={arcs} globeConfig={globeConfig} />
     </div>
   )
 }

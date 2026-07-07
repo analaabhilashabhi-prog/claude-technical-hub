@@ -1,51 +1,31 @@
-import LogoLoop from './LogoLoop'
-import ncet from '../assets/logo-ncet.png'
+import ngi from '../assets/logo-ngi.png'
 import ycce from '../assets/logo-ycce.png'
 import geeta from '../assets/logo-geeta.png'
 import torii from '../assets/logo-toriiminds.png'
-import claude from '../assets/claude-partner-logo.png'
 
-// All partner / institution logos. Add or remove here.
+// Institution / partner logos.
 const logos = [
-  { src: ncet, alt: 'Nagarjuna College (NCET)', href: '#' },
-  { src: ycce, alt: 'YCCE', href: '#' },
-  { src: geeta, alt: 'Geeta University', href: '#' },
-  { src: torii, alt: 'Toriiminds', href: '#' },
-  { src: claude, alt: 'Claude', href: '#' },
+  { src: ngi, alt: 'Nagarjuna College (NGI)' },
+  { src: ycce, alt: 'YCCE' },
+  { src: geeta, alt: 'Geeta University' },
+  { src: torii, alt: 'Toriiminds' },
 ]
 
-// Each logo with a styled tooltip bubble showing its name on hover.
-const renderLogo = (item, key) => (
-  <a
-    key={key}
-    href={item.href}
-    target="_blank"
-    rel="noreferrer noopener"
-    aria-label={item.alt}
-    className="logo-tip"
-  >
-    <img src={item.src} alt={item.alt} draggable={false} />
-    <span className="logo-tip__bubble">{item.alt}</span>
-  </a>
-)
-
+// Single static row — big logos, spread evenly across the screen.
 export default function PartnerMarquee() {
   return (
-    <section className="relative overflow-hidden bg-black py-16">
-      <LogoLoop
-        logos={logos}
-        speed={65}
-        direction="left"
-        logoHeight={130}
-        gap={48}
-        hoverSpeed={0}
-        scaleOnHover
-        fadeOut
-        fadeOutColor="#000000"
-        className="logoloop--grey"
-        ariaLabel="Our institution and technology partners"
-        renderItem={renderLogo}
-      />
+    <section className="relative z-10 -mt-[12vh] overflow-hidden bg-black pb-0 pt-0 lg:-mt-[18vh]">
+      <div className="flex w-full flex-nowrap items-center justify-evenly gap-8 px-6 sm:px-10 lg:px-16 xl:px-24">
+        {logos.map((item) => (
+          <img
+            key={item.alt}
+            src={item.src}
+            alt={item.alt}
+            draggable={false}
+            className="max-h-20 w-auto shrink-0 select-none object-contain sm:max-h-28 lg:max-h-36"
+          />
+        ))}
+      </div>
     </section>
   )
 }
