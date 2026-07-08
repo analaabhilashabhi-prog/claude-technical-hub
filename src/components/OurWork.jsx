@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import Masonry from './Masonry'
+import { Close } from './Icons'
 import dsc1766 from '../assets/work/dsc-1766.webp'
 import aiLab1 from '../assets/work/ai-lab-1.webp'
 import aiLab2 from '../assets/work/ai-lab-2.webp'
@@ -35,6 +37,20 @@ const workItems = [
 ]
 
 export default function OurWork() {
+  const [lightbox, setLightbox] = useState(null)
+
+  // Close the popup on Escape, and lock page scroll while it's open.
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e) => e.key === 'Escape' && setLightbox(null)
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [lightbox])
+
   return (
     <section id="work" className="relative overflow-hidden bg-black py-12 sm:py-16">
       <div className="pointer-events-none absolute right-1/4 top-1/4 h-80 w-80 rounded-full bg-claude-500/10 blur-[130px]" />
@@ -61,9 +77,47 @@ export default function OurWork() {
             scaleOnHover
             hoverScale={0.97}
             blurToFocus
+            onItemClick={setLightbox}
           />
         </div>
       </div>
+
+      {/* Full-image popup (click any photo) */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm sm:p-8"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setLightbox(null)}
+            className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/20 sm:right-6 sm:top-6"
+          >
+            <Close width={20} height={20} />
+          </button>
+
+          <figure className="flex max-h-full max-w-full flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={lightbox.img}
+              alt={lightbox.title || ''}
+              className="max-h-[85vh] max-w-[92vw] rounded-xl object-contain shadow-2xl shadow-black/60"
+            />
+            {(lightbox.category || lightbox.title) && (
+              <figcaption className="mt-4 text-center">
+                {lightbox.category && (
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-claude-300">
+                    {lightbox.category}
+                  </span>
+                )}
+                {lightbox.title && (
+                  <p className="mt-1 text-lg font-semibold text-white">{lightbox.title}</p>
+                )}
+              </figcaption>
+            )}
+          </figure>
+        </div>
+      )}
     </section>
   )
 }

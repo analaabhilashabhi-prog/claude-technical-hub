@@ -56,15 +56,17 @@ const Masonry = ({
   scaleOnHover = true,
   hoverScale = 0.97,
   blurToFocus = true,
+  onItemClick,
 }) => {
   const columns = useMedia(
     ['(min-width:1500px)', '(min-width:1000px)', '(min-width:600px)', '(min-width:400px)'],
     [5, 4, 3, 2],
-    1
+    2
   )
 
   const [containerRef, { width }] = useMeasure()
   const [imagesReady, setImagesReady] = useState(false)
+  const [aspects, setAspects] = useState({}) // img src -> naturalHeight/naturalWidth
   const [inView, setInView] = useState(false)
 
   // Toggle inView so the entrance animation replays every time the grid
@@ -105,23 +107,45 @@ const Masonry = ({
     }
   }
 
+  // Load each image and record its real aspect ratio (h/w) so tiles can match
+  // the photo shape — a mix of squares, portraits and landscapes.
   useEffect(() => {
-    preloadImages(items.map((i) => i.img)).then(() => setImagesReady(true))
+    let cancelled = false
+    Promise.all(
+      items.map(
+        (i) =>
+          new Promise((resolve) => {
+            const img = new Image()
+            img.src = i.img
+            img.onload = () =>
+              resolve([i.img, img.naturalWidth ? img.naturalHeight / img.naturalWidth : 0.7])
+            img.onerror = () => resolve([i.img, 0.7])
+          })
+      )
+    ).then((pairs) => {
+      if (cancelled) return
+      setAspects(Object.fromEntries(pairs))
+      setImagesReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [items])
 
   const grid = useMemo(() => {
     if (!width) return []
     const colHeights = new Array(columns).fill(0)
-    const columnWidth = width / columns
+    const columnWidth = width / columns // 8px wrapper padding provides the visual gap
     return items.map((child) => {
       const col = colHeights.indexOf(Math.min(...colHeights))
       const x = columnWidth * col
-      const height = child.height / 2
+      const ar = aspects[child.img] || 0.7 // fall back to gentle landscape until measured
+      const height = columnWidth * ar // tile height follows the photo's true shape
       const y = colHeights[col]
       colHeights[col] += height
       return { ...child, x, y, w: columnWidth, h: height }
     })
-  }, [columns, items, width])
+  }, [columns, items, width, aspects])
 
   // total height so the container doesn't collapse (items are absolute)
   const containerHeight = useMemo(
@@ -180,7 +204,11 @@ const Masonry = ({
           key={item.id}
           data-key={item.id}
           className="masonry-item-wrapper"
-          onClick={() => item.url && item.url !== '#' && window.open(item.url, '_blank', 'noopener')}
+          onClick={() =>
+            onItemClick
+              ? onItemClick(item)
+              : item.url && item.url !== '#' && window.open(item.url, '_blank', 'noopener')
+          }
           onMouseEnter={() => handleMouseEnter(item)}
           onMouseLeave={() => handleMouseLeave(item)}
         >

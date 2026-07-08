@@ -21,11 +21,22 @@ const ScrollFloat = ({
 
   const splitText = useMemo(() => {
     const text = typeof children === 'string' ? children : ''
-    return text.split('').map((char, index) => (
-      <span className="char" key={index}>
-        {char === ' ' ? ' ' : char}
-      </span>
-    ))
+    // Group letters by word (each word is a nowrap inline-block) so lines only
+    // ever break BETWEEN words — never mid-word.
+    const words = text.split(' ')
+    return words.flatMap((word, wi) => {
+      const wordSpan = (
+        <span className="word" key={`w${wi}`} style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
+          {word.split('').map((char, ci) => (
+            <span className="char" key={ci}>
+              {char}
+            </span>
+          ))}
+        </span>
+      )
+      // real breakable space between words
+      return wi < words.length - 1 ? [wordSpan, <span key={`s${wi}`}> </span>] : [wordSpan]
+    })
   }, [children])
 
   useEffect(() => {

@@ -153,10 +153,15 @@ export function Globe({ globeConfig, data }) {
 export function WebGLRendererConfig() {
   const { gl, size } = useThree()
   useEffect(() => {
-    gl.setPixelRatio(window.devicePixelRatio)
-    gl.setSize(size.width, size.height)
     gl.setClearColor(0xffaaff, 0)
-  }, [])
+  }, [gl])
+  // Re-sync the renderer whenever the canvas size changes (Android often
+  // resizes after mount when the address bar collapses / layout settles).
+  // Pinning the size once on mount left the globe off-center on those devices.
+  useEffect(() => {
+    gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    gl.setSize(size.width, size.height)
+  }, [gl, size.width, size.height])
   return null
 }
 

@@ -13,43 +13,19 @@ import Contact from './components/Contact'
 import BookingModal from './components/BookingModal'
 import AdminPage from './components/AdminPage'
 import WebinarsPage from './components/WebinarsPage'
-import MobileInfo from './components/MobileInfo'
-
-// Below this width we show the compact info screen instead of the full landing.
-const SMALL_BREAKPOINT = 768
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash)
-  const [isSmall, setIsSmall] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth < SMALL_BREAKPOINT
-  )
 
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)
-    const onResize = () => setIsSmall(window.innerWidth < SMALL_BREAKPOINT)
     window.addEventListener('hashchange', onHash)
-    window.addEventListener('resize', onResize)
-    return () => {
-      window.removeEventListener('hashchange', onHash)
-      window.removeEventListener('resize', onResize)
-    }
+    return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
   // Simple hash routes.
   if (hash === '#admin') return <AdminPage />
   if (hash === '#webinars') return <WebinarsPage />
-
-  // Small / phone screens get a compact info screen (booking still works).
-  if (isSmall) {
-    return (
-      <BookingProvider>
-        <div className="min-h-screen bg-black">
-          <MobileInfo />
-          <BookingModal />
-        </div>
-      </BookingProvider>
-    )
-  }
 
   return (
     <BookingProvider>

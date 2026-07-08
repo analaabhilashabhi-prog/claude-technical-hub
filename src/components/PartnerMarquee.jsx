@@ -14,15 +14,15 @@ const logos = [
 // Single static row — big logos, spread evenly across the screen.
 export default function PartnerMarquee() {
   return (
-    <section className="relative z-10 -mt-[12vh] overflow-hidden bg-black pb-0 pt-0 lg:-mt-[18vh]">
-      <div className="flex w-full flex-nowrap items-center justify-evenly gap-8 px-6 sm:px-10 lg:px-16 xl:px-24">
+    <section className="relative z-10 -mt-[16vh] overflow-hidden bg-black pb-10 pt-0 sm:-mt-[12vh] sm:pb-0 md:-mt-[24vh] lg:-mt-[18vh]">
+      <div className="flex w-full flex-nowrap items-center justify-evenly gap-3 px-4 sm:gap-8 sm:px-10 lg:px-16 xl:px-24">
         {logos.map((item) => (
           <img
             key={item.alt}
             src={item.src}
             alt={item.alt}
             draggable={false}
-            className="max-h-20 w-auto shrink-0 select-none object-contain sm:max-h-28 lg:max-h-36"
+            className="max-h-12 w-auto max-w-[22%] shrink-0 select-none object-contain xs:max-h-16 sm:max-h-28 sm:max-w-none lg:max-h-36"
           />
         ))}
       </div>

@@ -9,13 +9,22 @@ export default function HeroCarousel() {
   return (
     <section id="home" className="relative min-h-screen w-full overflow-hidden bg-black">
       {/* Left content — WORK WITH OFFICIAL + vertical Claude Partner Network lockup */}
-      <div className="pointer-events-none relative z-10 flex min-h-screen w-full items-center px-6 pb-28 pt-24 sm:px-10 lg:px-16 xl:px-24">
+      <div className="pointer-events-none relative z-10 flex min-h-screen w-full items-center px-6 pb-24 pt-28 sm:px-10 sm:pb-28 lg:px-16 xl:px-24">
         <div className="relative animate-fadeUp opacity-0">
           {/* WORK / WITH / OFFICIAL */}
-          <div className="inline-block font-poppins font-black uppercase leading-[0.84] tracking-tight text-neutral-300">
-            <div className="text-7xl sm:text-9xl lg:text-[10rem] xl:text-[12.5rem]">Work</div>
-            <div className="text-7xl sm:text-9xl lg:text-[10rem] xl:text-[12.5rem]">With</div>
-            <div className="ml-3 mt-3 text-4xl font-extrabold sm:text-6xl lg:ml-8 lg:text-7xl xl:text-8xl">Official</div>
+          <div className="inline-block font-poppins font-black uppercase leading-[0.82] tracking-tight text-neutral-300">
+            <div className="text-[clamp(3.25rem,23vw,7.5rem)] sm:text-9xl md:text-[10.5rem] lg:text-[10rem] xl:text-[12.5rem]">Work</div>
+            <div className="text-[clamp(3.25rem,23vw,7.5rem)] sm:text-9xl md:text-[10.5rem] lg:text-[10rem] xl:text-[12.5rem]">With</div>
+            <div className="ml-1 mt-3 text-[clamp(1.75rem,13vw,3.5rem)] font-extrabold sm:ml-3 sm:text-6xl md:text-8xl lg:ml-8 lg:text-7xl xl:text-8xl">Official</div>
+          </div>
+
+          {/* Mobile-only horizontal lockup (vertical one below is for tablet+) */}
+          <div className="mt-12 flex items-center gap-3 sm:hidden">
+            <img src={claudeMark} alt="Claude" className="h-12 w-auto" />
+            <div className="leading-none">
+              <div className="font-serif text-4xl font-semibold text-brand-500">Claude</div>
+              <div className="mt-1.5 font-serif text-xl text-brand-600">Partner Network</div>
+            </div>
           </div>
 
           {/* Claude Partner Network — vertical lockup tucked under the "K" of WORK */}

@@ -75,10 +75,10 @@ export default function Contact() {
       />
 
       <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
-        <div className="grid items-start gap-16 lg:grid-cols-2 lg:gap-10">
-          {/* ---------------- LEFT ---------------- */}
-          <div className="relative">
-            <div className="relative mx-auto w-full max-w-[32rem] lg:mx-0 lg:-mt-16 lg:w-[145%] lg:max-w-none lg:-ml-[52%]">
+        <div className="grid items-start gap-12 sm:gap-16 lg:grid-cols-2 lg:gap-10">
+          {/* ---------------- LEFT (globe) ---------------- */}
+          <div className="relative flex w-full justify-center lg:block">
+            <div className="relative mx-auto w-full max-w-[20rem] sm:max-w-[26rem] lg:mx-0 lg:-mt-16 lg:w-[145%] lg:max-w-none lg:-ml-[52%]">
               <InView
                 rootMargin="250px"
                 fallback={<div className="aspect-square w-full rounded-full bg-brand-500/5" />}

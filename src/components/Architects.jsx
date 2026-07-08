@@ -3,6 +3,7 @@ import Reveal from './Reveal'
 import ScrollFloat from './ScrollFloat'
 import claudeLogo from '../assets/claude-logo.svg'
 import techHubLogo from '../assets/darklogo.png'
+import claudeBadge from '../assets/claude-badge.png'
 import person from '../assets/team-sample.png'
 import certificate from '../assets/claude-certification.png'
 import harshavardhini from '../assets/trainers/harshavardhini.png'
@@ -59,12 +60,12 @@ export default function Architects() {
             </div>
           </Reveal>
 
-          <Reveal delay={120}>
-            <div className="text-right">
-              <p className="text-sm text-white/50">Powered by</p>
-              <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5">
-                <img src={claudeLogo} alt="Claude" className="h-6 w-auto" />
-                <span className="text-lg font-bold text-white">Claude</span>
+          <Reveal delay={120} className="w-full lg:w-auto">
+            <div className="text-left">
+              <p className="text-xs text-white/50">Powered by</p>
+              <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5">
+                <img src={claudeLogo} alt="Claude" className="h-4 w-auto" />
+                <span className="text-sm font-bold text-white">Claude</span>
               </div>
             </div>
           </Reveal>
@@ -95,6 +96,20 @@ export default function Architects() {
                   </div>
                 </Reveal>
               ))}
+
+              {/* Claude Certified Architect badge — pushed to the rightmost column */}
+              <Reveal
+                delay={architects.length * 70}
+                className="hidden sm:block sm:col-start-2 lg:col-start-3 lg:col-span-2"
+              >
+                <div className="flex h-full items-center justify-center">
+                  <img
+                    src={claudeBadge}
+                    alt="Claude Certified Architect"
+                    className="w-full max-w-[240px] cursor-pointer select-none object-contain transition-transform duration-500 ease-out hover:scale-110 hover:drop-shadow-[0_12px_30px_rgba(217,119,87,0.35)]"
+                  />
+                </div>
+              </Reveal>
             </div>
           </div>
 

@@ -152,8 +152,8 @@ export default function Services() {
       <div className="pointer-events-none absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-claude-500/10 blur-[150px]" />
 
       <div className="relative z-10 flex flex-col items-center gap-12 px-6 lg:flex-row lg:items-center lg:gap-12 lg:px-10">
-        {/* Left: monitor with the draggable on-screen info + figure */}
-        <div className="order-2 w-full lg:order-1 lg:w-[58%] lg:shrink-0">
+        {/* Left: monitor with the draggable on-screen info + figure (shown first on mobile too) */}
+        <div className="order-1 w-full lg:w-[58%] lg:shrink-0">
           <div className="relative w-full max-w-[980px]">
             <img
               src={frame}
@@ -186,29 +186,29 @@ export default function Services() {
         </div>
 
         {/* Right: heading + full info, synced to the active service */}
-        <div className="order-1 w-full lg:order-2 lg:w-[40%] lg:self-start lg:pt-6">
+        <div className="order-2 w-full lg:w-[40%] lg:self-start lg:pt-6">
           <ScrollFloat
-            containerClassName="mb-8 mt-10 text-6xl font-extrabold leading-[0.95] tracking-tight text-claude-400 sm:text-7xl lg:mt-20 lg:text-8xl"
+            containerClassName="mb-4 mt-4 text-2xl font-extrabold leading-[0.95] tracking-tight text-claude-400 xs:text-3xl sm:mb-8 sm:text-7xl lg:mt-20 lg:text-8xl"
             stagger={0.04}
           >
             Our Services
           </ScrollFloat>
 
           <div key={active} className="animate-fadeUp">
-            <h3 className="font-serif text-4xl font-bold uppercase leading-[1.05] tracking-tight text-brand-300 sm:text-5xl">
+            <h3 className="font-serif text-2xl font-bold uppercase leading-[1.05] tracking-tight text-brand-300 xs:text-3xl sm:text-5xl">
               {s.title}
             </h3>
 
-            <ul className="mt-7 space-y-4">
+            <ul className="mt-5 space-y-3 sm:mt-7 sm:space-y-4">
               {s.points.map((p) => (
-                <li key={p} className="flex items-start gap-3.5 text-lg text-white/80 sm:text-xl">
-                  <span className={`mt-2.5 h-2 w-2 shrink-0 rounded-full ${a.pill}`} />
+                <li key={p} className="flex items-start gap-3 text-sm text-white/80 sm:gap-3.5 sm:text-xl">
+                  <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${a.pill} sm:mt-2.5 sm:h-2 sm:w-2`} />
                   {p}
                 </li>
               ))}
             </ul>
 
-            <p className="mt-8 max-w-lg text-base italic leading-relaxed text-white/55 sm:text-lg">
+            <p className="mt-7 max-w-lg text-sm italic leading-relaxed text-white/55 sm:mt-8 sm:text-lg">
               Interested? Write to us at{' '}
               <a href="#contact" className={`not-italic font-semibold ${a.text} hover:underline`}>
                 support@technicalhub.io

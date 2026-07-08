@@ -122,10 +122,11 @@
   margin: 0;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   line-height: 0.92;
   color: #fff;
-  font-size: clamp(2.75rem, 6vw, 4.75rem);
+  /* small min so long words like "ASSOCIATED" never break on narrow phones */
+  font-size: clamp(1.6rem, 8vw, 4.75rem);
 }
 
 /* ---- Border glow (themed per card via --glow-color) ---- */
@@ -179,19 +180,37 @@
 
 /* ============ RESPONSIVE LAYOUT ============ */
 
-/* Tablet: 2 columns, bigs span full width, text on top */
-@media (min-width: 600px) {
+/* Phones & tablets: clean 2 x 2 grid of partner cards, text on top */
+@media (min-width: 320px) {
   .card-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 0.9rem;
   }
+  /* every partner card is a single equal cell (drop the desktop spans/big size) */
+  .bento-s1,
+  .bento-s2,
   .bento-wide,
   .bento-tall {
-    grid-column: span 2;
+    grid-column: auto;
+    grid-row: auto;
   }
+  .magic-bento-card--big {
+    min-height: 170px;
+    padding: 1.5rem;
+  }
+  .magic-bento-card--big .assoc-card__biglogo {
+    max-width: 78%;
+    max-height: 110px;
+  }
+  .magic-bento-card--big .assoc-card__name {
+    font-size: 1.05rem;
+  }
+  /* "Trusted by NETWORK" text spans both columns, on top */
   .bento-text {
     grid-column: span 2;
     order: -1;
-    padding-bottom: 0.5rem;
+    align-items: flex-start;
+    text-align: left;
   }
 }
 
@@ -218,6 +237,16 @@
     grid-column: 3 / span 2;
     grid-row: 1 / span 2;
   }
+  .magic-bento-card--big {
+    padding: 2rem;
+  }
+  .magic-bento-card--big .assoc-card__biglogo {
+    max-width: 70%;
+    max-height: 230px;
+  }
+  .magic-bento-card--big .assoc-card__name {
+    font-size: 1.6rem;
+  }
   .bento-text {
     grid-column: 3 / span 2;
     grid-row: 3;
@@ -226,7 +255,6 @@
     text-align: right;
     padding-right: 0.5rem;
   }
-  /* let spanning cards fill their taller slots */
   .bento-wide,
   .bento-tall {
     min-height: 0;
