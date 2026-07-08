@@ -50,16 +50,16 @@ export const slides = [
 ]
 
 export const architects = [
-  { id: 1, name: 'Harshavardhini', role: 'Lead Claude Architect' },
-  { id: 2, name: 'Prasanth', role: 'AI Solutions Architect' },
-  { id: 3, name: 'Bobby Pamarthi', role: 'Head of AI Training' },
-  { id: 4, name: 'Peter', role: 'Claude Product Lead' },
-  { id: 5, name: 'Sudhir', role: 'Curriculum Director' },
-  { id: 6, name: 'Akhilesh', role: 'AI Engineer' },
-  { id: 7, name: 'Bhargav', role: 'Integration Specialist' },
-  { id: 8, name: 'Manikanta', role: 'ML Engineer' },
-  { id: 9, name: 'Naveen', role: 'AI Consultant' },
-  { id: 10, name: 'Azar', role: 'Developer Advocate' },
+  { id: 1, name: 'Harshavardhini', role: 'Claude Architect' },
+  { id: 2, name: 'Prasanth', role: 'Claude Architect' },
+  { id: 3, name: 'Bobby Pamarthi', role: 'Claude Architect' },
+  { id: 4, name: 'Peter', role: 'Claude Architect' },
+  { id: 5, name: 'Sudhir', role: 'Claude Architect' },
+  { id: 6, name: 'Akhilesh', role: 'Claude Architect' },
+  { id: 7, name: 'Bhargav', role: 'Claude Architect' },
+  { id: 8, name: 'Manikanta', role: 'Claude Architect' },
+  { id: 9, name: 'Naveen', role: 'Claude Architect' },
+  { id: 10, name: 'Azar', role: 'Claude Architect' },
 ]
 
 export const services = [
