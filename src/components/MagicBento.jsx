@@ -3,8 +3,8 @@ import { gsap } from 'gsap'
 import { partnerTiers } from '../data/mockData'
 import { Spark, Academic, Arrow } from './Icons'
 import logoToriiminds from '../assets/logo-toriiminds.png'
-import logoNcet from '../assets/logo-ngi.png'
-import logoYcce from '../assets/logo-ycce.png'
+import logoNcet from '../assets/logo-ncet.png'
+import logoAditya from '../assets/logo-aditya.png'
 import logoGeeta from '../assets/logo-geeta.png'
 import ScrollFloat from './ScrollFloat'
 import './MagicBento.css'
@@ -12,7 +12,7 @@ import './MagicBento.css'
 const LOGOS = {
   toriiminds: logoToriiminds,
   ncet: logoNcet,
-  ycce: logoYcce,
+  aditya: logoAditya,
   geeta: logoGeeta,
 }
 
@@ -31,10 +31,10 @@ const byId = Object.fromEntries(
 )
 // area: which grid slot | big: large box styling
 const LAYOUT = [
-  { id: 'ycce', area: 's1' },
+  { id: 'toriiminds', area: 's1' },
   { id: 'geeta', area: 's2' },
   { id: 'ncet', area: 'wide', big: true },
-  { id: 'toriiminds', area: 'tall', big: true },
+  { id: 'aditya', area: 'tall', big: true },
 ].map((slot) => {
   const p = byId[slot.id]
   const glow = p.accent === 'coral' ? CORAL : GREEN
@@ -282,16 +282,30 @@ const useMobileDetection = () => {
 }
 
 function CardInner({ p }) {
-  return (
+  const inner = (
     <div className="assoc-card__center">
       {p.logo ? (
         <img src={p.logo} alt={p.name} className="assoc-card__biglogo" />
       ) : (
         <span className="assoc-card__mark">{p.initials}</span>
       )}
-      <h3 className="assoc-card__name">{p.name}</h3>
     </div>
   )
+  // External partner links open in a new tab; cards without one stay static.
+  if (p.link && p.link.startsWith('http')) {
+    return (
+      <a
+        href={p.link}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Visit ${p.name}`}
+        className="assoc-card__linkwrap"
+      >
+        {inner}
+      </a>
+    )
+  }
+  return inner
 }
 
 export default function MagicBento({

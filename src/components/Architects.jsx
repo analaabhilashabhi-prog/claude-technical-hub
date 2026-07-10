@@ -3,7 +3,6 @@ import Reveal from './Reveal'
 import ScrollFloat from './ScrollFloat'
 import claudeLogo from '../assets/claude-logo.svg'
 import techHubLogo from '../assets/darklogo.png'
-import claudeBadge from '../assets/claude-badge.png'
 import person from '../assets/team-sample.png'
 import certificate from '../assets/claude-certification.png'
 import harshavardhini from '../assets/trainers/harshavardhini.png'
@@ -79,12 +78,7 @@ export default function Architects() {
               {architects.map((m, i) => (
                 <Reveal key={m.id} delay={i * 70}>
                   <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] transition-all duration-300 hover:z-10 hover:border-white/25 hover:shadow-xl hover:shadow-black/40">
-                    {/* name + role */}
-                    <div className="flex min-h-[96px] flex-col justify-center px-3 py-5 text-center">
-                      <h3 className="text-sm font-bold leading-tight text-white sm:text-base">{m.name}</h3>
-                      <p className="mt-1 text-xs leading-tight text-white/50">{m.role}</p>
-                    </div>
-                    {/* portrait */}
+                    {/* portrait — full card; info slides up from the bottom on hover */}
                     <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-b from-white/[0.06] to-transparent">
                       <img
                         src={PHOTOS[m.id] || person}
@@ -92,24 +86,16 @@ export default function Architects() {
                         loading="lazy"
                         className="h-full w-full object-cover object-top grayscale transition-all duration-500 ease-out group-hover:scale-[1.06] group-hover:grayscale-0"
                       />
+                      {/* name + role overlay */}
+                      <div className="absolute inset-x-0 bottom-0 translate-y-full bg-gradient-to-t from-black/90 via-black/65 to-transparent px-3 pb-3.5 pt-10 text-center transition-transform duration-300 ease-out group-hover:translate-y-0 group-focus-within:translate-y-0">
+                        <h3 className="text-sm font-bold leading-tight text-white sm:text-base">{m.name}</h3>
+                        <p className="mt-1 text-xs leading-tight text-white/70">{m.role}</p>
+                      </div>
                     </div>
                   </div>
                 </Reveal>
               ))}
 
-              {/* Claude Certified Architect badge — pushed to the rightmost column */}
-              <Reveal
-                delay={architects.length * 70}
-                className="hidden sm:block sm:col-start-2 lg:col-start-3 lg:col-span-2"
-              >
-                <div className="flex h-full items-center justify-center">
-                  <img
-                    src={claudeBadge}
-                    alt="Claude Certified Architect"
-                    className="w-full max-w-[240px] cursor-pointer select-none object-contain transition-transform duration-500 ease-out hover:scale-110 hover:drop-shadow-[0_12px_30px_rgba(217,119,87,0.35)]"
-                  />
-                </div>
-              </Reveal>
             </div>
           </div>
 

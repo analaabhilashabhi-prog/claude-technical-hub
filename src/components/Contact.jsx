@@ -19,14 +19,14 @@ const INFO = [
   {
     icon: Phone,
     label: 'Phone',
-    lines: ['+91 83438 18181'],
+    lines: ['+91 83 43 81 81 81'],
     href: 'tel:+918343818181',
   },
   {
     icon: Mail,
     label: 'Mail',
-    lines: ['support@technicalhub.io'],
-    href: 'mailto:support@technicalhub.io',
+    lines: ['babji@technicalhub.io'],
+    href: 'mailto:babji@technicalhub.io',
   },
 ]
 
@@ -93,7 +93,7 @@ export default function Contact() {
           </div>
 
           {/* ---------------- RIGHT ---------------- */}
-          <div className="relative flex flex-col justify-start gap-9 lg:pl-6 lg:pt-4">
+          <div className="relative flex flex-col justify-start gap-6 sm:gap-9 lg:pl-6 lg:pt-4">
             {/* iridescent blob — brand green → white → coral */}
             <div
               className="pointer-events-none absolute right-0 top-1/3 h-64 w-40 rotate-12 rounded-[45%] opacity-80 blur-2xl"
@@ -106,12 +106,12 @@ export default function Contact() {
             {INFO.map((item, i) => {
               const Icon = item.icon
               const Row = (
-                <div className="flex items-start gap-5">
-                  <Icon width={30} height={30} className="mt-1 shrink-0 text-white" />
+                <div className="flex items-start gap-4 sm:gap-5">
+                  <Icon width={30} height={30} className="mt-1 h-6 w-6 shrink-0 text-white sm:h-[30px] sm:w-[30px]" />
                   <div>
-                    <p className="font-poppins text-2xl font-bold text-white">{item.label}</p>
+                    <p className="font-poppins text-lg font-bold text-white sm:text-2xl">{item.label}</p>
                     {item.lines.map((l, k) => (
-                      <p key={k} className="mt-1 text-sm leading-relaxed text-white/55">
+                      <p key={k} className="mt-0.5 text-xs leading-relaxed text-white/55 sm:mt-1 sm:text-sm">
                         {l}
                       </p>
                     ))}
@@ -133,11 +133,11 @@ export default function Contact() {
 
             {/* Follow us */}
             <Reveal delay={360}>
-              <div className="flex items-start gap-5">
-                <ThumbsUp width={30} height={30} className="mt-1 shrink-0 text-white" />
+              <div className="flex items-start gap-4 sm:gap-5">
+                <ThumbsUp width={30} height={30} className="mt-1 h-6 w-6 shrink-0 text-white sm:h-[30px] sm:w-[30px]" />
                 <div>
-                  <p className="font-poppins text-2xl font-bold text-white">Follow Us</p>
-                  <div className="mt-3 flex items-center gap-3">
+                  <p className="font-poppins text-lg font-bold text-white sm:text-2xl">Follow Us</p>
+                  <div className="mt-2.5 flex items-center gap-2.5 sm:mt-3 sm:gap-3">
                     {SOCIALS.map((s) => {
                       const SIcon = s.icon
                       return (
@@ -147,9 +147,9 @@ export default function Contact() {
                           target="_blank"
                           rel="noreferrer"
                           aria-label={s.label}
-                          className="grid h-10 w-10 place-items-center rounded-full bg-white text-black transition-transform hover:-translate-y-0.5 hover:bg-white/90"
+                          className="grid h-8 w-8 place-items-center rounded-full bg-white text-black transition-transform hover:-translate-y-0.5 hover:bg-white/90 sm:h-10 sm:w-10"
                         >
-                          <SIcon width={18} height={18} />
+                          <SIcon width={18} height={18} className="h-3.5 w-3.5 sm:h-[18px] sm:w-[18px]" />
                         </a>
                       )
                     })}
@@ -167,7 +167,7 @@ export default function Contact() {
 
             {/* Start a conversation — under the line structure */}
             <Reveal delay={520}>
-              <h3 className="text-brandgrad mt-4 font-poppins text-5xl font-extrabold leading-[0.92] tracking-tight sm:text-6xl">
+              <h3 className="text-brandgrad mt-4 font-poppins text-[2rem] font-extrabold leading-[0.92] tracking-tight xs:text-4xl sm:text-6xl">
                 Start a
                 <br />
                 conversation.

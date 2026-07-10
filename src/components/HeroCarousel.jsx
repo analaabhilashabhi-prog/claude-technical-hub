@@ -7,36 +7,29 @@ const Lanyard = lazy(() => import('./Lanyard'))
 
 export default function HeroCarousel() {
   return (
-    <section id="home" className="relative min-h-screen w-full overflow-hidden bg-black">
-      {/* Left content — WORK WITH OFFICIAL + vertical Claude Partner Network lockup */}
-      <div className="pointer-events-none relative z-10 flex min-h-screen w-full items-center px-6 pb-24 pt-28 sm:px-10 sm:pb-28 lg:px-16 xl:px-24">
+    <section id="home" className="relative w-full overflow-hidden bg-black lg:min-h-[78vh]">
+      {/* Left content — WORK WITH OFFICIAL + vertical Claude Partner Network lockup.
+          Natural height on phones/tablets; ~3/4-screen on laptop so the gradient
+          banner below peeks in right after the hero. */}
+      <div className="pointer-events-none relative z-10 flex w-full items-center px-6 pb-14 pt-24 sm:px-10 sm:pb-16 sm:pt-32 lg:min-h-[78vh] lg:pb-20 lg:px-16 lg:pt-28 xl:px-24">
         <div className="relative animate-fadeUp opacity-0">
           {/* WORK / WITH / OFFICIAL */}
-          <div className="inline-block font-poppins font-black uppercase leading-[0.82] tracking-tight text-neutral-300">
-            <div className="text-[clamp(3.25rem,23vw,7.5rem)] sm:text-9xl md:text-[10.5rem] lg:text-[10rem] xl:text-[12.5rem]">Work</div>
-            <div className="text-[clamp(3.25rem,23vw,7.5rem)] sm:text-9xl md:text-[10.5rem] lg:text-[10rem] xl:text-[12.5rem]">With</div>
-            <div className="ml-1 mt-3 text-[clamp(1.75rem,13vw,3.5rem)] font-extrabold sm:ml-3 sm:text-6xl md:text-8xl lg:ml-8 lg:text-7xl xl:text-8xl">Official</div>
+          <div className="inline-block font-poppins font-extrabold uppercase leading-[0.82] tracking-tight">
+            <div className="bg-gradient-to-b from-white/90 to-white/25 bg-clip-text text-[clamp(3.25rem,23vw,7.5rem)] text-transparent drop-shadow-2xl sm:text-9xl md:text-[10.5rem] lg:text-[10rem] xl:text-[12.5rem]">Work</div>
+            <div className="bg-gradient-to-b from-white/90 to-white/25 bg-clip-text text-[clamp(3.25rem,23vw,7.5rem)] text-transparent drop-shadow-2xl sm:text-9xl md:text-[10.5rem] lg:text-[10rem] xl:text-[12.5rem]">With</div>
+            <div className="ml-1 mt-3 bg-gradient-to-b from-white/90 to-white/25 bg-clip-text text-[clamp(1.75rem,13vw,3.5rem)] text-transparent drop-shadow-2xl sm:ml-3 sm:text-6xl md:text-8xl lg:ml-8 lg:text-7xl xl:text-8xl">Official</div>
           </div>
 
-          {/* Mobile-only horizontal lockup (vertical one below is for tablet+) */}
-          <div className="mt-12 flex items-center gap-3 sm:hidden">
-            <img src={claudeMark} alt="Claude" className="h-12 w-auto" />
-            <div className="leading-none">
-              <div className="font-serif text-4xl font-semibold text-brand-500">Claude</div>
-              <div className="mt-1.5 font-serif text-xl text-brand-600">Partner Network</div>
-            </div>
-          </div>
-
-          {/* Claude Partner Network — vertical lockup tucked under the "K" of WORK */}
-          <div className="absolute -right-10 top-[34%] hidden h-[280px] w-[110px] sm:block lg:-right-16 lg:h-[380px] lg:w-[145px]">
+          {/* Claude Partner Network — vertical lockup beside the headline on every view */}
+          <div className="absolute -right-5 top-[31%] h-[170px] w-[58px] sm:-right-10 sm:top-[34%] sm:h-[300px] sm:w-[125px] md:-right-12 md:h-[400px] md:w-[165px] lg:-right-16 lg:h-[380px] lg:w-[145px]">
             <div className="absolute left-1/2 top-1/2 flex origin-center -translate-x-1/2 -translate-y-1/2 -rotate-90 flex-col items-start whitespace-nowrap">
-              <div className="flex items-center gap-2.5">
-                <img src={claudeMark} alt="Claude" className="h-10 w-auto lg:h-12" />
-                <span className="font-serif text-4xl font-semibold leading-none text-brand-500 lg:text-5xl">
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <img src={claudeMark} alt="Claude" className="h-6 w-auto sm:h-11 md:h-14 lg:h-12" />
+                <span className="font-serif text-2xl font-semibold leading-none text-brand-500 sm:text-5xl md:text-6xl lg:text-5xl">
                   Claude
                 </span>
               </div>
-              <span className="mt-2 font-serif text-xl leading-none tracking-[0.02em] text-brand-600 lg:text-2xl">
+              <span className="mt-1 font-serif text-sm leading-none tracking-[0.02em] text-brand-600 sm:mt-2 sm:text-2xl md:text-3xl lg:text-2xl">
                 Partner Network
               </span>
             </div>

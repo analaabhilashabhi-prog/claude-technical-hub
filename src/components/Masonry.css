@@ -29,37 +29,68 @@
   filter: grayscale(0) brightness(1);
 }
 
+/* Hidden by default — photo only; revealed on hover */
 .masonry-item-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.15) 45%, transparent 72%);
+  opacity: 0;
   transition: opacity 0.4s ease;
 }
 
+.masonry-item-wrapper:hover .masonry-item-overlay {
+  opacity: 1;
+}
+
+/* Caption slides up from the bottom of the photo on hover */
 .masonry-item-caption {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 1.1rem 1.2rem;
+  padding: 0.6rem 0.7rem;
   text-align: left;
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.masonry-item-wrapper:hover .masonry-item-caption {
+  transform: translateY(0);
+  opacity: 1;
 }
 
 .masonry-item-cat {
   display: inline-block;
-  font-size: 0.62rem;
+  font-size: 0.5rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   color: #eaa987;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.2rem;
 }
 
 .masonry-item-title {
   margin: 0;
   color: #fff;
-  font-size: 1.02rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.15;
   letter-spacing: -0.01em;
+}
+
+/* Restore larger captions on tablet/desktop where the tiles are bigger */
+@media (min-width: 640px) {
+  .masonry-item-caption {
+    padding: 1.1rem 1.2rem;
+  }
+  .masonry-item-cat {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    margin-bottom: 0.35rem;
+  }
+  .masonry-item-title {
+    font-size: 1.02rem;
+    line-height: 1.2;
+  }
 }

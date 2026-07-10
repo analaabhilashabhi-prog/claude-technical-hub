@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { BookingProvider } from './context/BookingContext'
 import Navbar from './components/Navbar'
 import HeroCarousel from './components/HeroCarousel'
-import PartnerMarquee from './components/PartnerMarquee'
+import GradientBanner from './components/GradientBanner'
 import Architects from './components/Architects'
 import Services from './components/Services'
 import AssociatedWith from './components/AssociatedWith'
+import MacbookShowcase from './components/MacbookShowcase'
+import SuccessStories from './components/SuccessStories'
 import OurWork from './components/OurWork'
 import ClaudePowered from './components/ClaudePowered'
 import Testimonials from './components/Testimonials'
@@ -33,10 +35,12 @@ export default function App() {
         <Navbar />
         <main>
           <HeroCarousel />
-          <PartnerMarquee />
+          <GradientBanner />
           <Services />
           <Architects />
           <AssociatedWith />
+          <MacbookShowcase />
+          <SuccessStories />
           {/* photos keep their own scroll-in animation (inside Masonry) */}
           <OurWork />
           <ClaudePowered />

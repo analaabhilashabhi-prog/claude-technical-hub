@@ -13,9 +13,9 @@
   justify-content: center;
   align-items: center;
   position: relative;
-  min-height: 190px;
+  min-height: 150px;
   width: 100%;
-  padding: 1.5rem;
+  padding: 1.25rem;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);
@@ -57,6 +57,17 @@
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.22);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Clickable partner link fills the whole card ---- */
+.assoc-card__linkwrap {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 /* ---- Centered logo + name ---- */
@@ -218,8 +229,8 @@
 @media (min-width: 1024px) {
   .card-grid {
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(3, minmax(155px, 1fr));
-    gap: 1.25rem;
+    grid-template-rows: repeat(3, minmax(115px, 1fr));
+    gap: 1rem;
   }
   .bento-s1 {
     grid-column: 1;
@@ -238,11 +249,11 @@
     grid-row: 1 / span 2;
   }
   .magic-bento-card--big {
-    padding: 2rem;
+    padding: 1.5rem;
   }
   .magic-bento-card--big .assoc-card__biglogo {
-    max-width: 70%;
-    max-height: 230px;
+    max-width: 62%;
+    max-height: 160px;
   }
   .magic-bento-card--big .assoc-card__name {
     font-size: 1.6rem;
