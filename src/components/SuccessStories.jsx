@@ -383,20 +383,18 @@ export default function SuccessStories() {
 
         {/* closing CTA strip */}
         <Reveal delay={160}>
-          <div className="mt-12 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-white/10 px-8 py-7 transition-colors duration-300 hover:border-claude-500/40">
-            <div className="flex items-center gap-4">
-              <img src={techHubLogo} alt="Technical Hub" className="h-9 w-auto select-none" />
-              <div className="font-poppins text-2xl font-extrabold text-white lg:text-3xl">
-                Your story could be <span className="text-brand-300">next.</span>
-              </div>
+          <div className="mt-12 flex flex-wrap items-center justify-between gap-8 rounded-2xl border border-white/10 bg-white/[0.02] px-8 py-10 transition-colors duration-300 hover:border-claude-500/40 lg:px-12">
+            <div className="bg-gradient-to-b from-white/90 to-white/25 bg-clip-text font-poppins text-3xl font-extrabold leading-tight text-transparent drop-shadow-2xl sm:text-4xl lg:text-5xl">
+              Your story could
+              <br className="hidden lg:block" /> be <span className="text-brand-300">next.</span>
             </div>
-            <p className="max-w-lg text-sm leading-relaxed text-white/55">
+            <p className="max-w-2xl text-base leading-relaxed text-white/65 lg:text-lg">
               Interested? Write to us at{' '}
               <span className="font-semibold text-claude-300">support@technicalhub.io</span> and mention{' '}
               <span className="font-semibold text-claude-300">Success Story</span> in your subject —
               we&apos;ll map the six-phase blueprint to your institution with the{' '}
               <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">
-                <img src={claudeLogo} alt="" className="h-4 w-auto self-center" />
+                <img src={claudeLogo} alt="" className="h-5 w-auto self-center" />
                 <span className="font-serif font-bold text-brand-300">Claude</span>
               </span>{' '}
               Partner Network.
