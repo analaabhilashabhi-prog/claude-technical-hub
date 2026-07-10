@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Masonry from './Masonry'
+import Reveal from './Reveal'
 import { Close } from './Icons'
 import dsc1766 from '../assets/work/dsc-1766.webp'
 import aiLab1 from '../assets/work/ai-lab-1.webp'
@@ -57,15 +58,19 @@ export default function OurWork() {
       <div className="pointer-events-none absolute bottom-[5%] left-[-8%] h-96 w-96 rounded-full bg-brand-500/[0.08] blur-[160px]" />
       <div className="relative w-full px-6 sm:px-10 lg:px-16 xl:px-24">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <h2 className="font-syne text-5xl font-extrabold leading-[0.92] tracking-tight text-brand-300 sm:text-6xl lg:text-7xl">
-            Work That{' '}
-            <span className="bg-gradient-to-r from-claude-300 via-claude-400 to-claude-500 bg-clip-text text-transparent">
-              Ships
-            </span>
-          </h2>
-          <p className="max-w-md text-base leading-relaxed text-white/50 lg:text-right">
-            AI labs stood up, programs run, products launched — a look at what we build with Claude.
-          </p>
+          <Reveal>
+            <h2 className="font-syne text-5xl font-extrabold leading-[0.92] tracking-tight text-brand-300 sm:text-6xl lg:text-7xl">
+              Work That{' '}
+              <span className="bg-gradient-to-r from-claude-300 via-claude-400 to-claude-500 bg-clip-text text-transparent">
+                Ships
+              </span>
+            </h2>
+          </Reveal>
+          <Reveal delay={130}>
+            <p className="max-w-md text-base leading-relaxed text-white/50 lg:text-right">
+              AI labs stood up, programs run, products launched — a look at what we build with Claude.
+            </p>
+          </Reveal>
         </div>
 
         <div className="mt-14">

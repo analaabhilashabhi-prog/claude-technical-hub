@@ -1,4 +1,5 @@
 import ScrollFloat from './ScrollFloat'
+import Reveal from './Reveal'
 import './Testimonials.css'
 
 // Placeholder testimonials — swap avatars/quotes for real ones later.
@@ -64,7 +65,9 @@ export default function Testimonials() {
       <div className="pointer-events-none absolute -top-24 right-[12%] h-80 w-80 rounded-full bg-claude-500/10 blur-[140px]" />
       <div className="pointer-events-none absolute bottom-[-15%] left-[8%] h-96 w-96 rounded-full bg-brand-500/[0.08] blur-[160px]" />
       <div className="mb-14 px-6 sm:px-10 lg:px-16 xl:px-24">
-        <p className="text-xs font-bold uppercase tracking-[0.28em] text-claude-400">Testimonials</p>
+        <Reveal>
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-claude-400">Testimonials</p>
+        </Reveal>
         <ScrollFloat
           containerClassName="mt-4 font-syne text-4xl font-extrabold tracking-tight text-claude-400 sm:text-5xl lg:text-6xl"
           stagger={0.03}
@@ -73,13 +76,15 @@ export default function Testimonials() {
         </ScrollFloat>
       </div>
 
-      <div className="testi-marquee">
-        <div className="testi-track" style={{ '--duration': duration }}>
-          {loop.map((t, i) => (
-            <Card key={i} t={t} />
-          ))}
+      <Reveal delay={140}>
+        <div className="testi-marquee">
+          <div className="testi-track" style={{ '--duration': duration }}>
+            {loop.map((t, i) => (
+              <Card key={i} t={t} />
+            ))}
+          </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   )
 }

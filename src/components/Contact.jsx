@@ -109,9 +109,9 @@ export default function Contact() {
                 <div className="flex items-start gap-4 sm:gap-5">
                   <Icon width={30} height={30} className="mt-1 h-6 w-6 shrink-0 text-white sm:h-[30px] sm:w-[30px]" />
                   <div>
-                    <p className="font-poppins text-lg font-bold text-white sm:text-2xl">{item.label}</p>
+                    <p className="font-poppins text-xl font-bold text-white sm:text-3xl">{item.label}</p>
                     {item.lines.map((l, k) => (
-                      <p key={k} className="mt-0.5 text-xs leading-relaxed text-white/55 sm:mt-1 sm:text-sm">
+                      <p key={k} className="mt-0.5 text-sm leading-relaxed text-white/70 sm:mt-1.5 sm:text-lg">
                         {l}
                       </p>
                     ))}
@@ -136,7 +136,7 @@ export default function Contact() {
               <div className="flex items-start gap-4 sm:gap-5">
                 <ThumbsUp width={30} height={30} className="mt-1 h-6 w-6 shrink-0 text-white sm:h-[30px] sm:w-[30px]" />
                 <div>
-                  <p className="font-poppins text-lg font-bold text-white sm:text-2xl">Follow Us</p>
+                  <p className="font-poppins text-xl font-bold text-white sm:text-3xl">Follow Us</p>
                   <div className="mt-2.5 flex items-center gap-2.5 sm:mt-3 sm:gap-3">
                     {SOCIALS.map((s) => {
                       const SIcon = s.icon

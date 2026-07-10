@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { BookingProvider } from './context/BookingContext'
 import Navbar from './components/Navbar'
 import HeroCarousel from './components/HeroCarousel'
-import GradientBanner from './components/GradientBanner'
+// import GradientBanner from './components/GradientBanner' // retired — re-enable by uncommenting here and below
 import Architects from './components/Architects'
 import Services from './components/Services'
 import AssociatedWith from './components/AssociatedWith'
-import MacbookShowcase from './components/MacbookShowcase'
+// import MacbookShowcase from './components/MacbookShowcase' // retired for now — re-enable by uncommenting here and below
 import SuccessStories from './components/SuccessStories'
 import OurWork from './components/OurWork'
 import ClaudePowered from './components/ClaudePowered'
@@ -35,11 +35,10 @@ export default function App() {
         <Navbar />
         <main>
           <HeroCarousel />
-          <GradientBanner />
           <Services />
           <Architects />
           <AssociatedWith />
-          <MacbookShowcase />
+          {/* <MacbookShowcase /> */}
           <SuccessStories />
           {/* photos keep their own scroll-in animation (inside Masonry) */}
           <OurWork />

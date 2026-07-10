@@ -376,7 +376,7 @@ export default function WebinarsPage() {
               </p>
             </div>
             <a
-              href="mailto:support@technicalhub.io"
+              href="mailto:babji@technicalhub.io"
               className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-bold text-black transition hover:-translate-y-0.5"
             >
               Request a private session

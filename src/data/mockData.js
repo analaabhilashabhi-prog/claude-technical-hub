@@ -315,7 +315,7 @@ export const webinars = [
 ]
 
 export const contactDetails = [
-  { id: 'email', label: 'Email', value: 'support@technicalhub.io', href: 'mailto:support@technicalhub.io', icon: 'mail' },
+  { id: 'email', label: 'Email', value: 'babji@technicalhub.io', href: 'mailto:babji@technicalhub.io', icon: 'mail' },
   { id: 'mobile', label: 'Mobile', value: '+91 98765 43210', href: 'tel:+919876543210', icon: 'phone' },
   // { id: 'linkedin', label: 'LinkedIn', value: 'linkedin.com/company/technicalhub', href: 'https://linkedin.com/company/technicalhub', icon: 'linkedin' },
   // { id: 'address', label: 'Address', value: '4th Floor, Innovation Towers, HITEC City, Hyderabad, India 500081', href: null, icon: 'pin' },

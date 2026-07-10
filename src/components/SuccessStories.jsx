@@ -165,13 +165,13 @@ const STEPS = [
   { n: '03', t: 'Curriculum', d: 'Prompt & context engineering, credited.' },
   { n: '04', t: 'Hands-on Build', d: 'Hackathons & project weeks that ship.' },
   { n: '05', t: 'Expertise', d: 'Certified architects, on the ground.' },
-  { n: '06', t: 'Impact', d: 'Claude drives everyday execution.' },
+  { n: '06', t: 'Certification', d: 'Official Anthropic certificates, earned and in hand.' },
 ]
 
 const CHECKS = [
   'Measured outcomes on every engagement',
   'Official Anthropic courses & certification',
-  'Real software, vibe-coded & in production',
+  'Claude Code & Claude Cowork, taught hands-on',
 ]
 
 export default function SuccessStories() {
@@ -208,21 +208,15 @@ export default function SuccessStories() {
               </h2>
             </Reveal>
           </div>
-          <Reveal delay={140}>
-            <p className="max-w-sm text-sm leading-relaxed text-white/50 sm:text-base lg:text-right">
-              Two campuses and one company, transformed end-to-end. Every number below is live on a
-              dedicated partner site — click through and verify.
-            </p>
-          </Reveal>
         </div>
 
         {/* proof ticker */}
         <Reveal delay={160}>
-          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-white/10 py-4 sm:mt-9">
+          <div className="no-scrollbar mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 border-y border-white/10 py-4 sm:mt-9 lg:flex-nowrap lg:justify-between lg:gap-x-2 lg:overflow-x-auto">
             {TICKER.map((t, i) => {
               const TickerIcon = t.Icon
               return (
-                <span key={t.label} className="flex items-center gap-6">
+                <span key={t.label} className="flex items-center gap-5 lg:gap-3">
                   <span className="group flex items-center gap-2.5 whitespace-nowrap text-[0.8rem] text-white/55 transition-colors duration-300 hover:text-white/80 sm:text-sm">
                     <TickerIcon
                       width={15}
@@ -253,12 +247,8 @@ export default function SuccessStories() {
             return (
               <Reveal key={s.id} delay={i * 120} className="h-full">
                 <article
-                  className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/40 ${s.hoverBorder}`}
+                  className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-7 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/40 ${s.hoverBorder}`}
                 >
-                  <div
-                    className={`pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full blur-2xl ${s.glow}`}
-                  />
-
                   {/* logo chip + engagement type */}
                   <div className="relative flex items-center justify-between">
                     <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.06] transition-transform duration-300 group-hover:scale-105">
@@ -300,11 +290,11 @@ export default function SuccessStories() {
                       return (
                         <li
                           key={pt.text}
-                          className="group/li flex items-start gap-3 text-[0.8rem] leading-relaxed text-white/65 transition-colors duration-300 hover:text-white/85"
+                          className="group/li flex items-start gap-3 text-[0.95rem] leading-relaxed text-white/70 transition-colors duration-300 hover:text-white/90"
                         >
                           <PointIcon
-                            width={14}
-                            height={14}
+                            width={16}
+                            height={16}
                             className={`mt-[0.25em] shrink-0 transition-transform duration-300 group-hover/li:scale-125 ${s.tick}`}
                           />
                           {pt.text}
@@ -390,7 +380,7 @@ export default function SuccessStories() {
             </div>
             <p className="max-w-2xl text-base leading-relaxed text-white/65 lg:text-lg">
               Interested? Write to us at{' '}
-              <span className="font-semibold text-claude-300">support@technicalhub.io</span> and mention{' '}
+              <span className="font-semibold text-claude-300">babji@technicalhub.io</span> and mention{' '}
               <span className="font-semibold text-claude-300">Success Story</span> in your subject —
               we&apos;ll map the six-phase blueprint to your institution with the{' '}
               <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap">

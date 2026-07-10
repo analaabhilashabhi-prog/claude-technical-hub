@@ -3,6 +3,7 @@ import { services } from '../data/mockData'
 import { Check, Mail } from './Icons'
 import ScreenCarousel from './ScreenCarousel'
 import ScrollFloat from './ScrollFloat'
+import Reveal from './Reveal'
 import frame from '../assets/desktop-frame.png'
 import claudeMark from '../assets/claude-logo.svg'
 import aiReadyLogo from '../assets/ai-ready-engineer.png'
@@ -131,7 +132,7 @@ function ScreenContent({ service }) {
           </span>
           <div style={{ fontSize: 13.5, color: SUB, lineHeight: 1.5 }}>
             Interested? Write to us at{' '}
-            <span style={{ fontWeight: 700, color: ACCENT }}>support@technicalhub.io</span> and mention{' '}
+            <span style={{ fontWeight: 700, color: ACCENT }}>babji@technicalhub.io</span> and mention{' '}
             <span style={{ fontWeight: 700, color: INK }}>{service.title}</span> in your subject.
           </div>
         </div>
@@ -151,9 +152,10 @@ export default function Services() {
       <div className="pointer-events-none absolute left-0 top-1/4 h-96 w-96 rounded-full bg-brand-500/10 blur-[150px]" />
       <div className="pointer-events-none absolute right-1/4 bottom-1/4 h-96 w-96 rounded-full bg-claude-500/10 blur-[150px]" />
 
-      <div className="relative z-10 flex flex-col items-center gap-12 px-6 lg:flex-row lg:items-center lg:gap-12 lg:px-10">
+      <div className="relative z-10 flex flex-col items-center gap-4 px-6 sm:gap-5 lg:flex-row lg:items-center lg:gap-12 lg:px-10">
         {/* Left: monitor with the draggable on-screen info + figure (shown first on mobile too) */}
         <div className="order-1 w-full lg:w-[58%] lg:shrink-0">
+          <Reveal>
           <div className="relative w-full max-w-[980px]">
             <img
               src={frame}
@@ -183,17 +185,19 @@ export default function Services() {
               />
             </div>
           </div>
+          </Reveal>
         </div>
 
         {/* Right: heading + full info, synced to the active service */}
-        <div className="order-2 w-full lg:w-[40%] lg:self-start lg:pt-6">
+        <div className="order-2 w-full lg:w-[40%] lg:self-start lg:pt-2">
           <ScrollFloat
-            containerClassName="mb-4 mt-4 text-2xl font-extrabold leading-[0.95] tracking-tight text-claude-400 xs:text-3xl sm:mb-8 sm:text-7xl lg:mt-20 lg:text-8xl"
+            containerClassName="mb-4 mt-0 text-2xl font-extrabold leading-[0.95] tracking-tight text-claude-400 xs:text-3xl sm:mb-8 sm:text-7xl lg:mt-0 lg:text-8xl"
             stagger={0.04}
           >
             Our Services
           </ScrollFloat>
 
+          <Reveal delay={140}>
           <div key={active} className="animate-fadeUp">
             <h3 className="font-serif text-2xl font-bold uppercase leading-[1.05] tracking-tight text-brand-300 xs:text-3xl sm:text-5xl">
               {s.title}
@@ -211,11 +215,12 @@ export default function Services() {
             <p className="mt-7 max-w-lg text-sm italic leading-relaxed text-white/55 sm:mt-8 sm:text-lg">
               Interested? Write to us at{' '}
               <a href="#contact" className={`not-italic font-semibold ${a.text} hover:underline`}>
-                support@technicalhub.io
+                babji@technicalhub.io
               </a>{' '}
               and mention <span className="not-italic font-semibold text-white/70">{s.title}</span> in your subject.
             </p>
           </div>
+          </Reveal>
 
           {/* progress indicators (drag the screen to change) */}
           <div className="mt-10 flex items-center gap-3">

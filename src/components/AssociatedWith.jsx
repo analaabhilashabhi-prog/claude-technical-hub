@@ -1,4 +1,5 @@
 import MagicBento from './MagicBento'
+import Reveal from './Reveal'
 import claudeLogo from '../assets/claude-logo.svg'
 
 export default function AssociatedWith() {
@@ -10,6 +11,7 @@ export default function AssociatedWith() {
         <div className="flex flex-col gap-8 lg:flex-row lg:gap-12">
           {/* Left ~16% — distinctive heading */}
           <div className="lg:w-[16%]">
+            <Reveal className="h-full">
             <div className="flex h-full flex-col justify-center gap-5 lg:-translate-y-28">
               {/* logo + gradient accent rule */}
               <div className="flex items-center gap-3">
@@ -39,6 +41,7 @@ export default function AssociatedWith() {
                 </span>
               </div>
             </div>
+            </Reveal>
           </div>
 
           {/* Right ~84% — MagicBento (glow only) */}

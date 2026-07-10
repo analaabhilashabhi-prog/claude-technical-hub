@@ -150,3 +150,11 @@
 .animate-third { animation: moveInCircle 40s linear infinite; }
 .animate-fourth { animation: moveHorizontal 40s ease infinite; }
 .animate-fifth { animation: moveInCircle 20s ease infinite; }
+
+/* hero scroll cue — dot drops inside the mouse outline and fades */
+@keyframes scrollDot {
+  0% { transform: translateY(0); opacity: 1; }
+  65% { transform: translateY(0.95rem); opacity: 0; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+.animate-scrollDot { animation: scrollDot 1.9s cubic-bezier(0.4, 0, 0.2, 1) infinite; }

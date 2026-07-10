@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { apps } from '../data/mockData'
+import Reveal from './Reveal'
 import { Arrow } from './Icons'
 import claudeLogo from '../assets/claude-logo.svg'
 import mynaLanding from '../assets/projects/myna-landing.jpg'
@@ -31,15 +32,18 @@ export default function ClaudePowered() {
 
       <div className="relative mx-auto w-full px-6 sm:px-10 lg:px-16 xl:px-24">
         {/* heading */}
-        <div className="flex items-center gap-2.5">
-          <img src={claudeLogo} alt="Claude" className="h-6 w-auto" />
-          <span className="text-sm font-bold uppercase tracking-widest text-claude-400">Claude Powered</span>
-        </div>
-        <h2 className="text-brandgrad mt-4 font-syne text-4xl font-extrabold leading-[0.95] tracking-tight sm:text-5xl lg:text-6xl">
-          Our projects on Claude
-        </h2>
+        <Reveal>
+          <div className="flex items-center gap-2.5">
+            <img src={claudeLogo} alt="Claude" className="h-6 w-auto" />
+            <span className="text-sm font-bold uppercase tracking-widest text-claude-400">Claude Powered</span>
+          </div>
+          <h2 className="text-brandgrad mt-4 font-syne text-4xl font-extrabold leading-[0.95] tracking-tight sm:text-5xl lg:text-6xl">
+            Our projects on Claude
+          </h2>
+        </Reveal>
 
         {/* feature — full landing screenshot + details */}
+        <Reveal delay={140}>
         <div className="mt-12 grid gap-10 lg:grid-cols-[1.45fr_1fr] lg:items-center">
           {/* big picture — the whole landing page */}
           <div
@@ -113,6 +117,7 @@ export default function ClaudePowered() {
             </div>
           </div>
         </div>
+        </Reveal>
       </div>
     </section>
   )

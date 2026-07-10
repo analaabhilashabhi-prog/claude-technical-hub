@@ -11,10 +11,12 @@ export default function Navbar() {
     <header className="absolute top-0 inset-x-0 z-50">
       <nav className="w-full px-6 sm:px-10 lg:px-16 xl:px-24">
         <div className="flex h-20 sm:h-24 items-center justify-between">
-          {/* Logo — left */}
+          {/* Logo — left — REMOVED (lives beside the Claude lockup in the hero now).
+              Uncomment to bring it back:
           <a href="#home" className="flex items-center">
-            <img src={logo} alt="Technical Hub" className="h-8 w-auto sm:h-10" />
+            <img src={logo} alt="Technical Hub" className="h-10 w-auto sm:h-12 lg:h-14" />
           </a>
+          */}
 
           {/* CTAs — right — TEMPORARILY DISABLED (front page only for now).
               Uncomment to re-activate the Webinar + AI Lab buttons. */}
