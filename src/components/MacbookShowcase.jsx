@@ -82,35 +82,16 @@ function TypedText({ line, count }) {
 }
 
 /* ---------- what plays on the MacBook screen ----------
-   Header + footer are fixed; once `active` (lid fully open), the middle
-   content types itself out like a terminal. */
-function ScreenPreview({ active }) {
-  const [started, setStarted] = useState(false)
-  const [lineIdx, setLineIdx] = useState(0)
-  const [charIdx, setCharIdx] = useState(0)
+   Header + footer are fixed; the middle content is typed BY the scroll:
+   once the lid is open, each stretch of scrolling types the next line
+   (scrolling back up un-types it again). */
+const TYPE_START = 0.32 // scroll progress where typing begins (lid fully open)
+// the section below enters the viewport at ~55% progress, so the last
+// character must land before that
+const TYPE_END = 0.52
+
+function ScreenPreview({ progress }) {
   const [cursorOn, setCursorOn] = useState(true)
-
-  // small beat after the screen reaches full size, then start typing
-  useEffect(() => {
-    if (!active || started) return
-    const t = setTimeout(() => setStarted(true), 450)
-    return () => clearTimeout(t)
-  }, [active, started])
-
-  // type character by character, pause between lines
-  useEffect(() => {
-    if (!started || lineIdx >= TERM_LINES.length) return
-    const line = TERM_LINES[lineIdx]
-    if (charIdx < line.text.length) {
-      const t = setTimeout(() => setCharIdx((c) => c + 1), 26 + Math.random() * 38)
-      return () => clearTimeout(t)
-    }
-    const t = setTimeout(() => {
-      setLineIdx((i) => i + 1)
-      setCharIdx(0)
-    }, 550)
-    return () => clearTimeout(t)
-  }, [started, lineIdx, charIdx])
 
   // blinking block cursor
   useEffect(() => {
@@ -118,7 +99,22 @@ function ScreenPreview({ active }) {
     return () => clearInterval(iv)
   }, [])
 
-  const done = lineIdx >= TERM_LINES.length
+  // map scroll progress -> total characters typed, split across lines by length
+  const lens = TERM_LINES.map((l) => l.text.length)
+  const totalChars = lens.reduce((a, b) => a + b, 0)
+  const t = Math.max(0, Math.min(1, (progress - TYPE_START) / (TYPE_END - TYPE_START)))
+  const typed = Math.round(t * totalChars)
+
+  let remaining = typed
+  const counts = lens.map((len) => {
+    const c = Math.max(0, Math.min(len, remaining))
+    remaining -= c
+    return c
+  })
+
+  const started = typed > 0
+  const lineIdx = counts.findIndex((c, i) => c < lens[i]) === -1 ? TERM_LINES.length : counts.findIndex((c, i) => c < lens[i])
+  const done = typed >= totalChars
   const cursor = (blink) => (
     <span
       className={`ml-1 inline-block h-4 w-2 translate-y-0.5 bg-white/70 transition-opacity duration-100 ${
@@ -165,7 +161,7 @@ function ScreenPreview({ active }) {
         ) : (
           <div className="space-y-4">
             {TERM_LINES.map((line, i) => {
-              if (i > lineIdx) return null
+              if (counts[i] <= 0) return null
               const LineIcon = line.Icon
               const isCurrent = i === lineIdx
               return (
@@ -176,7 +172,7 @@ function ScreenPreview({ active }) {
                     <LineIcon width={14} height={14} />
                   </span>
                   <p className="font-mono text-[1.05rem] font-semibold leading-snug tracking-tight text-white">
-                    <TypedText line={line} count={isCurrent ? charIdx : line.text.length} />
+                    <TypedText line={line} count={counts[i]} />
                     {isCurrent && cursor(false)}
                   </p>
                 </div>
@@ -223,10 +219,10 @@ export default function MacbookShowcase() {
     if (window && window.innerWidth < 768) setIsMobile(true)
   }, [])
 
-  // the terminal starts typing once the lid has fully opened
-  const [opened, setOpened] = useState(false)
+  // scroll progress feeds the terminal — each scroll step types the next characters
+  const [prog, setProg] = useState(0)
   useMotionValueEvent(scrollYProgress, 'change', (v) => {
-    if (v > 0.3) setOpened(true)
+    setProg(Math.round(v * 500) / 500) // quantized so re-renders stay cheap
   })
 
   // screen opens, then grows past the chassis toward full-screen size
@@ -236,14 +232,15 @@ export default function MacbookShowcase() {
   const rotate = useTransform(scrollYProgress, [0.1, 0.12, 0.3], [-28, -28, 0])
   const textTransform = useTransform(scrollYProgress, [0, 0.3], [0, 100])
   const textOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0])
-  // whole laptop dissolves as the scroll ends, handing over to the section below
-  const fadeOut = useTransform(scrollYProgress, [0.55, 0.9], [1, 0])
+  // whole laptop dissolves only after the last line is typed (typing ends at 0.52),
+  // just as the next section scrolls in over it
+  const fadeOut = useTransform(scrollYProgress, [0.56, 0.72], [1, 0])
 
   return (
     <section className="w-full overflow-hidden bg-black">
       <div
         ref={ref}
-        className="flex min-h-[200vh] shrink-0 scale-[0.35] transform flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-60"
+        className="flex min-h-[220vh] shrink-0 scale-[0.35] transform flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-60"
       >
         <motion.h2
           style={{ translateY: textTransform, opacity: textOpacity }}
@@ -251,7 +248,7 @@ export default function MacbookShowcase() {
         >
           Our partnerships, <span className="text-brand-300">live in production.</span>
           <br />
-          <span className="text-white/50">Keep scrolling to open.</span>
+          <span className="text-white/50">Watch the proof type itself.</span>
         </motion.h2>
 
         {/* laptop — fades out smoothly at the end of the scroll */}
@@ -288,7 +285,7 @@ export default function MacbookShowcase() {
             className="absolute inset-0 h-96 w-[32rem] rounded-2xl bg-[#010101] p-2"
           >
             <div className="absolute inset-0 rounded-lg bg-[#272729]" />
-            <ScreenPreview active={opened} />
+            <ScreenPreview progress={prog} />
           </motion.div>
         </div>
 
