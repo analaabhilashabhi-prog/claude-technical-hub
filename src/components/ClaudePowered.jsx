@@ -27,6 +27,7 @@ export default function ClaudePowered() {
   return (
     <section id="apps" className="relative overflow-hidden bg-black py-12 sm:py-16">
       <div className="pointer-events-none absolute right-1/4 top-10 h-72 w-72 rounded-full bg-claude-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-10%] left-[-5%] h-96 w-96 rounded-full bg-brand-500/[0.09] blur-[150px]" />
 
       <div className="relative mx-auto w-full px-6 sm:px-10 lg:px-16 xl:px-24">
         {/* heading */}

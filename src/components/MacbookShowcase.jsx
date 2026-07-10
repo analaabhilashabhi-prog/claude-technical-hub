@@ -237,7 +237,10 @@ export default function MacbookShowcase() {
   const fadeOut = useTransform(scrollYProgress, [0.56, 0.72], [1, 0])
 
   return (
-    <section className="w-full overflow-hidden bg-black">
+    <section className="relative w-full overflow-hidden bg-black">
+      {/* ambient glows — behind everything, never interactive */}
+      <div className="pointer-events-none absolute left-[-8%] top-[8%] h-96 w-96 rounded-full bg-claude-500/[0.07] blur-[160px]" />
+      <div className="pointer-events-none absolute right-[-6%] top-[32%] h-96 w-96 rounded-full bg-brand-500/[0.08] blur-[170px]" />
       <div
         ref={ref}
         className="flex min-h-[220vh] shrink-0 scale-[0.35] transform flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-60"

@@ -61,6 +61,8 @@ export default function Testimonials() {
 
   return (
     <section id="testimonials" className="relative overflow-hidden bg-black py-12 sm:py-16">
+      <div className="pointer-events-none absolute -top-24 right-[12%] h-80 w-80 rounded-full bg-claude-500/10 blur-[140px]" />
+      <div className="pointer-events-none absolute bottom-[-15%] left-[8%] h-96 w-96 rounded-full bg-brand-500/[0.08] blur-[160px]" />
       <div className="mb-14 px-6 sm:px-10 lg:px-16 xl:px-24">
         <p className="text-xs font-bold uppercase tracking-[0.28em] text-claude-400">Testimonials</p>
         <ScrollFloat

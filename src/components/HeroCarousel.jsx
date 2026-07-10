@@ -8,6 +8,9 @@ const Lanyard = lazy(() => import('./Lanyard'))
 export default function HeroCarousel() {
   return (
     <section id="home" className="relative w-full overflow-hidden bg-black lg:min-h-[78vh]">
+      {/* ambient glows — behind everything, never interactive */}
+      <div className="pointer-events-none absolute -left-32 top-[18%] h-96 w-96 rounded-full bg-brand-500/[0.08] blur-[160px]" />
+      <div className="pointer-events-none absolute right-[10%] top-[55%] h-80 w-80 rounded-full bg-claude-500/[0.07] blur-[150px]" />
       {/* Left content — WORK WITH OFFICIAL + vertical Claude Partner Network lockup.
           Natural height on phones/tablets; ~3/4-screen on laptop so the gradient
           banner below peeks in right after the hero. */}

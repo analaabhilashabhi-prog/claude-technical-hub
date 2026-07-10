@@ -54,6 +54,7 @@ export default function OurWork() {
   return (
     <section id="work" className="relative overflow-hidden bg-black py-12 sm:py-16">
       <div className="pointer-events-none absolute right-1/4 top-1/4 h-80 w-80 rounded-full bg-claude-500/10 blur-[130px]" />
+      <div className="pointer-events-none absolute bottom-[5%] left-[-8%] h-96 w-96 rounded-full bg-brand-500/[0.08] blur-[160px]" />
       <div className="relative w-full px-6 sm:px-10 lg:px-16 xl:px-24">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <h2 className="font-syne text-5xl font-extrabold leading-[0.92] tracking-tight text-brand-300 sm:text-6xl lg:text-7xl">
