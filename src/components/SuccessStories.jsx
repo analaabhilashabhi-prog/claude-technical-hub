@@ -5,7 +5,6 @@ import {
   Academic,
   Building,
   Cube,
-  Check,
   Arrow,
   Award,
   Users,
@@ -160,18 +159,18 @@ const STORIES = [
 ]
 
 const STEPS = [
-  { n: '01', t: 'Awareness', d: 'Campus-wide workshops spark an AI culture.' },
-  { n: '02', t: 'Infrastructure', d: 'Labs reborn on Claude — up to Claude Max, 24/7.' },
-  { n: '03', t: 'Curriculum', d: 'Prompt & context engineering, credited.' },
-  { n: '04', t: 'Hands-on Build', d: 'Hackathons & project weeks that ship.' },
-  { n: '05', t: 'Expertise', d: 'Certified architects, on the ground.' },
-  { n: '06', t: 'Certification', d: 'Official Anthropic certificates, earned and in hand.' },
+  { n: '01', t: 'Awareness', d: 'Campus-wide workshops spark an AI culture.', Icon: Spark },
+  { n: '02', t: 'Infrastructure', d: 'Labs reborn on Claude — up to Claude Max, 24/7.', Icon: Building },
+  { n: '03', t: 'Curriculum', d: 'Prompt & context engineering, credited.', Icon: Book },
+  { n: '04', t: 'Hands-on Build', d: 'Hackathons & project weeks that ship.', Icon: Code },
+  { n: '05', t: 'Expertise', d: 'Certified architects, on the ground.', Icon: Users },
+  { n: '06', t: 'Certification', d: 'Official Anthropic certificates, earned and in hand.', Icon: Award },
 ]
 
 const CHECKS = [
-  'Measured outcomes on every engagement',
-  'Official Anthropic courses & certification',
-  'Claude Code & Claude Cowork, taught hands-on',
+  { text: 'Measured outcomes on every engagement', Icon: TrendingUp },
+  { text: 'Official Anthropic courses & certification', Icon: Academic },
+  { text: 'Claude Code & Claude Cowork, taught hands-on', Icon: Code },
 ]
 
 export default function SuccessStories() {
@@ -210,31 +209,29 @@ export default function SuccessStories() {
           </div>
         </div>
 
-        {/* proof ticker */}
+        {/* proof ticker — aligned grid of icon stats (single strip on desktop) */}
         <Reveal delay={160}>
-          <div className="no-scrollbar mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 border-y border-white/10 py-4 sm:mt-9 lg:flex-nowrap lg:justify-between lg:gap-x-2 lg:overflow-x-auto">
-            {TICKER.map((t, i) => {
+          <div className="no-scrollbar mt-8 grid grid-cols-2 gap-x-6 gap-y-5 border-y border-white/10 py-5 sm:mt-9 sm:grid-cols-3 lg:flex lg:flex-nowrap lg:items-center lg:justify-between lg:gap-x-4 lg:overflow-x-auto">
+            {TICKER.map((t) => {
               const TickerIcon = t.Icon
               return (
-                <span key={t.label} className="flex items-center gap-5 lg:gap-3">
-                  <span className="group flex items-center gap-2.5 whitespace-nowrap text-[0.8rem] text-white/55 transition-colors duration-300 hover:text-white/80 sm:text-sm">
-                    <TickerIcon
-                      width={15}
-                      height={15}
-                      className="shrink-0 text-claude-400 transition-transform duration-300 group-hover:scale-110"
-                    />
+                <div
+                  key={t.label}
+                  className="group flex items-center gap-2.5 text-[0.8rem] leading-tight text-white/60 transition-colors duration-300 hover:text-white/85 sm:text-sm lg:whitespace-nowrap"
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-claude-500/10 text-claude-400 transition-transform duration-300 group-hover:scale-110">
+                    <TickerIcon width={17} height={17} />
+                  </span>
+                  <span>
                     <CountUp
                       to={t.to}
                       prefix={t.prefix}
                       suffix={t.suffix}
                       className="font-poppins text-base font-bold text-white"
-                    />
+                    />{' '}
                     {t.label}
                   </span>
-                  {i < TICKER.length - 1 && (
-                    <span className="hidden h-1 w-1 rounded-full bg-claude-400 sm:block" />
-                  )}
-                </span>
+                </div>
               )
             })}
           </div>
@@ -251,8 +248,8 @@ export default function SuccessStories() {
                 >
                   {/* logo chip + engagement type */}
                   <div className="relative flex items-center justify-between">
-                    <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.06] transition-transform duration-300 group-hover:scale-105">
-                      <img src={s.logo} alt={s.name} className="max-h-10 max-w-10 object-contain" />
+                    <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.06] transition-transform duration-300 group-hover:scale-105">
+                      <img src={s.logo} alt={s.name} className="max-h-20 max-w-20 object-contain" />
                     </div>
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[0.55rem] font-bold uppercase tracking-[0.18em] text-white/55 transition-colors duration-300 group-hover:border-white/25 group-hover:text-white/75">
                       <KindIcon width={12} height={12} />
@@ -326,59 +323,70 @@ export default function SuccessStories() {
 
         {/* the reproducible playbook — Claude-paper cream card */}
         <Reveal delay={120}>
-          <div className="relative mt-14 overflow-hidden rounded-3xl bg-cream px-8 py-10 text-[#211c19] lg:px-12 lg:py-12">
-            {/* Claude starburst as the corner burst */}
+          <div className="relative mt-12 overflow-hidden rounded-2xl bg-cream px-5 py-8 text-[#211c19] sm:rounded-3xl sm:px-8 sm:py-10 lg:px-12 lg:py-12">
+            {/* Claude starburst as the corner burst — shrinks on mobile so it never crowds the text */}
             <img
               src={claudeLogo}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 select-none opacity-90"
+              className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 select-none opacity-70 sm:-right-14 sm:-top-14 sm:h-40 sm:w-40 sm:opacity-90 lg:-right-10 lg:-top-10 lg:h-44 lg:w-44"
             />
 
-            <span className="inline-block rounded-full border border-[#211c19]/25 px-4 py-1.5 text-[0.55rem] font-semibold uppercase tracking-[0.22em] text-[#211c19]/65">
+            <span className="inline-block rounded-full border border-[#211c19]/25 px-3.5 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-[#211c19]/65 sm:px-4 sm:text-[0.62rem] sm:tracking-[0.22em]">
               The Playbook
             </span>
-            <h3 className="mt-4 font-poppins text-3xl font-extrabold leading-tight lg:text-4xl">
+            <h3 className="mt-4 max-w-[14ch] font-poppins text-3xl font-extrabold leading-tight sm:max-w-[18ch] sm:text-4xl lg:max-w-none lg:text-5xl">
               One blueprint. <span className="text-claude-500">Any institution.</span>
             </h3>
-            <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-[#211c19]/65">
+            <p className="mt-3 max-w-2xl text-[0.95rem] leading-relaxed text-[#211c19]/70 sm:text-base lg:text-lg">
               Every success story above follows the same six-phase engagement model — documented,
               measured, and ready to reproduce at your campus or company.
             </p>
 
-            <div className="mt-7 grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
-              {STEPS.map((step, i) => (
-                <Reveal key={step.n} delay={i * 70} className="h-full">
-                  <div className="h-full rounded-xl bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#211c19]/10">
-                    <div className="font-poppins text-xs font-extrabold text-claude-500">{step.n}</div>
-                    <div className="mt-0.5 text-[0.8rem] font-semibold">{step.t}</div>
-                    <div className="mt-0.5 text-[0.65rem] leading-snug text-[#211c19]/55">{step.d}</div>
-                  </div>
-                </Reveal>
-              ))}
+            <div className="mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+              {STEPS.map((step, i) => {
+                const StepIcon = step.Icon
+                return (
+                  <Reveal key={step.n} delay={i * 70} className="h-full">
+                    <div className="group/step h-full rounded-xl bg-white p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-[#211c19]/10 sm:p-4">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-claude-500/10 text-claude-500 transition-transform duration-300 group-hover/step:scale-110 sm:h-9 sm:w-9">
+                          <StepIcon width={17} height={17} />
+                        </span>
+                        <span className="font-poppins text-xs font-extrabold text-claude-500/70 sm:text-sm">{step.n}</span>
+                      </div>
+                      <div className="mt-2.5 text-[0.9rem] font-semibold leading-tight sm:text-[0.95rem]">{step.t}</div>
+                      <div className="mt-1 text-[0.75rem] leading-snug text-[#211c19]/60 sm:text-[0.78rem]">{step.d}</div>
+                    </div>
+                  </Reveal>
+                )
+              })}
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-x-7 gap-y-2.5">
-              {CHECKS.map((c) => (
-                <span key={c} className="inline-flex items-center gap-2 text-[0.8rem] font-medium text-[#211c19]/80">
-                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-500/10 text-brand-600">
-                    <Check width={11} height={11} />
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-8 sm:gap-y-3">
+              {CHECKS.map((c) => {
+                const CheckIcon = c.Icon
+                return (
+                  <span key={c.text} className="inline-flex items-center gap-2.5 text-[0.9rem] font-medium text-[#211c19]/85 sm:text-[0.95rem]">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-500/10 text-brand-600">
+                      <CheckIcon width={15} height={15} />
+                    </span>
+                    {c.text}
                   </span>
-                  {c}
-                </span>
-              ))}
+                )
+              })}
             </div>
           </div>
         </Reveal>
 
         {/* closing CTA strip */}
         <Reveal delay={160}>
-          <div className="mt-12 flex flex-wrap items-center justify-between gap-8 rounded-2xl border border-white/10 bg-white/[0.02] px-8 py-10 transition-colors duration-300 hover:border-claude-500/40 lg:px-12">
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-white/10 bg-white/[0.02] px-6 py-8 transition-colors duration-300 hover:border-claude-500/40 sm:gap-8 sm:px-8 sm:py-10 lg:px-12">
             <div className="bg-gradient-to-b from-white/90 to-white/25 bg-clip-text font-poppins text-3xl font-extrabold leading-tight text-transparent drop-shadow-2xl sm:text-4xl lg:text-5xl">
               Your story could
               <br className="hidden lg:block" /> be <span className="text-brand-300">next.</span>
             </div>
-            <p className="max-w-2xl text-base leading-relaxed text-white/65 lg:text-lg">
+            <p className="max-w-2xl text-[0.95rem] leading-relaxed text-white/65 sm:text-base lg:text-lg">
               Interested? Write to us at{' '}
               <span className="font-semibold text-claude-300">babji@technicalhub.io</span> and mention{' '}
               <span className="font-semibold text-claude-300">Success Story</span> in your subject —
