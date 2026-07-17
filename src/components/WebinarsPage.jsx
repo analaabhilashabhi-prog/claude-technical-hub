@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { getWebinars } from '../data/webinarStore'
 import { createBooking } from '../data/api'
 import { bookingForms, emptyFormFor, validateForm } from '../data/bookingForms'
+import { buildEvent, googleUrl, downloadICS } from '../data/calendar'
 import { Arrow, Check, Close, Calendar } from './Icons'
 import { useOutsideClick } from '../hooks/useOutsideClick'
 import { HeroHighlight } from './HeroHighlight'
@@ -40,11 +41,19 @@ function sessionYM(w) {
 // Poster: real image if provided, else a grey gradient with the session initial.
 function PosterBg({ w, small }) {
   return (
-    <div className="relative h-full w-full overflow-hidden bg-gradient-to-br from-neutral-800 via-neutral-900 to-black">
+    <div
+      className={`relative h-full w-full overflow-hidden ${
+        small ? 'bg-neutral-950' : 'bg-gradient-to-br from-neutral-800 via-neutral-900 to-black'
+      }`}
+    >
       {w.poster ? (
         <>
-          <img src={w.poster} alt={w.title} className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <img
+            src={w.poster}
+            alt={w.title}
+            className={`h-full w-full ${small ? 'object-contain' : 'object-cover'}`}
+          />
+          {!small && <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />}
         </>
       ) : (
         <>
@@ -64,9 +73,11 @@ function PosterBg({ w, small }) {
           </span>
         </>
       )}
-      <span className="absolute left-4 top-4 rounded-full bg-black/30 px-3 py-1 text-[0.66rem] font-bold uppercase tracking-wider text-white backdrop-blur">
-        {w.kind}
-      </span>
+      {!small && (
+        <span className="absolute left-4 top-4 rounded-full bg-black/30 px-3 py-1 text-[0.66rem] font-bold uppercase tracking-wider text-white backdrop-blur">
+          {w.kind}
+        </span>
+      )}
     </div>
   )
 }
@@ -98,6 +109,7 @@ function RegisterForm({ w, onDone }) {
       ampm: w.ampm,
       duration: w.duration,
       presenter: w.presenter || '',
+      role: w.role || '',
       description: w.description || '',
       location: w.link || 'Online',
       submittedAt: new Date().toISOString(),
@@ -118,6 +130,7 @@ function RegisterForm({ w, onDone }) {
   }
 
   if (done) {
+    const event = buildEvent(w)
     return (
       <div className="px-6 pb-8 pt-2 text-center">
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/30">
@@ -125,12 +138,53 @@ function RegisterForm({ w, onDone }) {
         </div>
         <h3 className="mt-4 text-xl font-bold text-white">You're registered!</h3>
         <p className="mt-2 text-sm text-white/60">
-          Thanks, {form.firstName}. Your spot for {w.title} is saved — we'll email {form.email} to confirm.
+          Thanks, {form.firstName}. Your spot for <span className="text-white/80">{w.title}</span> is saved — a
+          confirmation is on its way to {form.email}.
         </p>
-        <button
-          onClick={onDone}
-          className="mt-5 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/85 transition hover:bg-white/5"
-        >
+
+        {/* session summary */}
+        <div className="mx-auto mt-5 max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left">
+          <div className="flex items-center gap-2 text-sm font-semibold text-white">
+            <Calendar className="h-4 w-4 shrink-0 text-claude-400" />
+            {w.date} · {(w.time || '').replace(/\s*IST/i, '')}
+          </div>
+          {w.link ? (
+            <a
+              href={w.link}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 block truncate text-sm text-claude-300 hover:underline"
+            >
+              🔗 {w.link}
+            </a>
+          ) : (
+            <p className="mt-2 text-xs text-white/45">The joining link will be emailed before the session.</p>
+          )}
+        </div>
+
+        {/* add to calendar */}
+        {event && (
+          <div className="mt-4 flex flex-col items-center gap-2.5 sm:flex-row sm:justify-center">
+            <a
+              href={googleUrl(event)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-5 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5"
+            >
+              <Calendar className="h-4 w-4" />
+              Add to Google Calendar
+            </a>
+            <button
+              type="button"
+              onClick={() => downloadICS(event, `${w.id || 'webinar'}.ics`)}
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold text-white/85 transition hover:bg-white/5"
+            >
+              Apple / Outlook (.ics)
+            </button>
+          </div>
+        )}
+
+        <button onClick={onDone} className="mt-5 text-sm font-semibold text-white/50 transition hover:text-white/80">
           Done
         </button>
       </div>
@@ -339,7 +393,7 @@ export default function WebinarsPage() {
                     : 'border-white/10 bg-neutral-900/60 hover:border-white/25'
               }`}
             >
-              <motion.div layoutId={`image-${w.id}`} className="aspect-[5/4] w-full">
+              <motion.div layoutId={`image-${w.id}`} className="aspect-video w-full">
                 <PosterBg w={w} />
               </motion.div>
               <div className="flex flex-1 flex-col p-5">
@@ -405,7 +459,7 @@ export default function WebinarsPage() {
             <motion.div
               layoutId={`card-${active.id}`}
               ref={ref}
-              className="relative flex max-h-[92vh] w-full max-w-[560px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-950"
+              className="relative flex max-h-[92vh] w-full max-w-[860px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-neutral-950"
             >
               {/* close */}
               <button
@@ -415,15 +469,15 @@ export default function WebinarsPage() {
                 <Close className="h-4 w-4" />
               </button>
 
-              {/* poster (shrinks in register stage) */}
-              <motion.div
-                layoutId={`image-${active.id}`}
-                animate={{ height: stage === 'register' ? 150 : 260 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full shrink-0"
-              >
-                <PosterBg w={active} small={stage === 'register'} />
-              </motion.div>
+              {/* poster — only in the detail view; the register step is just info + form */}
+              {stage === 'detail' && (
+                <motion.div
+                  layoutId={`image-${active.id}`}
+                  className="aspect-video w-full shrink-0"
+                >
+                  <PosterBg w={active} />
+                </motion.div>
+              )}
 
               <div className="flex min-h-0 flex-col overflow-y-auto">
                 {/* header */}
@@ -457,19 +511,19 @@ export default function WebinarsPage() {
                       className="px-6 pb-8"
                     >
                       <p className="text-sm leading-relaxed text-white/65">{active.description}</p>
-                      <div className="mt-5 flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-4 text-sm">
+                      <div className="mt-5 flex flex-wrap items-start justify-between gap-x-8 gap-y-3 border-t border-white/10 pt-4 text-sm">
                         <div>
-                          <p className="text-xs uppercase tracking-wider text-white/40">Presenter</p>
+                          <p className="text-xs uppercase tracking-wider text-white/40">Hosted by</p>
                           <p className="mt-0.5 font-semibold text-white">{active.presenter}</p>
                           <p className="text-white/50">{active.role}</p>
                         </div>
-                        <div>
+                        <div className="text-right">
                           <p className="text-xs uppercase tracking-wider text-white/40">When</p>
-                          <p className="mt-0.5 flex items-center gap-1.5 font-semibold text-white">
+                          <p className="mt-0.5 flex items-center justify-end gap-1.5 font-semibold text-white">
                             <Calendar className="h-4 w-4 text-claude-400" />
                             {active.date}
                           </p>
-                          <p className="text-white/50">{active.time}</p>
+                          <p className="text-white/50">{active.time.replace(/\s*IST/i, '')}</p>
                         </div>
                       </div>
                       <button

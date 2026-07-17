@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Webinar Poster</title>
+  <style>
+    :root {
+      --dark: #06291b;   /* left panel */
+      --green: #28dd88;  /* right panel */
+      --head: #34ec92;   /* headline */
+      --mid: #2ac47e;    /* subtitle, date, time */
+      --ink: #06291b;    /* text on green */
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: #141414;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      font-family: 'Poppins', 'Montserrat', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      padding: 24px;
+    }
+
+    .poster {
+      position: relative;
+      width: min(1280px, 96vw);
+      aspect-ratio: 16 / 9;
+      container-type: size;
+      overflow: hidden;
+      background: var(--dark);
+      box-shadow: 0 30px 80px -20px rgba(0,0,0,.6);
+      display: grid;
+      grid-template-columns: 63% 37%;
+    }
+
+    /* ---- Left (dark) panel ---- */
+    .left { position: relative; }
+    .brand {
+      position: absolute;
+      top: 3.4cqw; left: 5.6cqw;
+      display: flex; align-items: center; gap: 1.5cqw;
+    }
+    .brand .burst { width: 3.7cqw; height: 3.7cqw; display: block; }
+    .brand .th { height: 2.9cqw; width: auto; display: block; }
+
+    .headline { position: absolute; left: 5.6cqw; top: 24%; right: 4cqw; }
+    .headline h1 {
+      color: var(--head);
+      font-weight: 800;
+      font-size: 6cqw;
+      line-height: 1.03;
+      letter-spacing: -0.02em;
+    }
+    .headline .sub {
+      color: var(--mid);
+      font-weight: 500;
+      font-size: 2.35cqw;
+      margin-top: 1.8cqw;
+      letter-spacing: 0.01em;
+      max-width: 42cqw;
+    }
+
+    .meta {
+      position: absolute;
+      left: 5.6cqw; right: 6cqw; bottom: 8.6cqw;
+      display: flex; align-items: center; justify-content: space-between; gap: 2cqw;
+      color: var(--mid); font-weight: 700; font-size: 1.6cqw; letter-spacing: 0.01em;
+    }
+    .meta .time { white-space: nowrap; }
+
+    /* ---- Right (green) panel ---- */
+    .right { position: relative; background: var(--green); }
+    .photo {
+      position: absolute;
+      top: 3.2cqw; left: 50%; transform: translateX(-50%);
+      width: 29cqw; height: 29cqw;
+      border-radius: 50%; overflow: hidden;
+      background: #c9cdce;
+      display: grid; place-items: center;
+    }
+    .photo img {
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: center top;
+      transform: scale(1.55); transform-origin: center 22%;
+    }
+    .photo .initials {
+      font-weight: 800; font-size: 12cqw; color: var(--ink); line-height: 1;
+    }
+    .photo .brandmark { width: 54%; height: 54%; }
+    .speaker {
+      position: absolute;
+      top: 35.5cqw; left: 6%; right: 6%;
+      text-align: center; color: var(--ink);
+    }
+    .speaker .name { font-weight: 700; font-size: 2.15cqw; letter-spacing: 0.01em; }
+    .speaker .role { font-weight: 400; font-size: 1.5cqw; margin-top: 1.3cqw; }
+    .speaker .org  { font-weight: 400; font-size: 1.5cqw; margin-top: 0.35cqw; }
+
+    .divider {
+      position: absolute; left: 0; right: 0; bottom: 4.9cqw;
+      height: 1px; background: rgba(255,255,255,.14);
+    }
+  </style>
+</head>
+<body>
+  <div class="poster">
+    <div class="left">
+      <div class="brand">
+        <svg class="burst" viewBox="0 -.01 39.5 39.53" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="m7.75 26.27 7.77-4.36.13-.38-.13-.21h-.38l-1.3-.08-4.44-.12-3.85-.16-3.73-.2-.94-.2-.88-1.16.09-.58.79-.53 1.13.1 2.5.17 3.75.26 2.72.16 4.03.42h.64l.09-.26-.22-.16-.17-.16-3.88-2.63-4.2-2.78-2.2-1.6-1.19-.81-.6-.76-.26-1.66 1.08-1.19 1.45.1.37.1 1.47 1.13 3.14 2.43 4.1 3.02.6.5.24-.17.03-.12-.27-.45-2.23-4.03-2.38-4.1-1.06-1.7-.28-1.02c-.1-.42-.17-.77-.17-1.2l1.23-1.67.68-.22 1.64.22.69.6 1.02 2.33 1.65 3.67 2.56 4.99.75 1.48.4 1.37.15.42h.26v-.24l.21-2.81.39-3.45.38-4.44.13-1.25.62-1.5 1.23-.81.96.46.79 1.13-.11.73-.47 3.05-.92 4.78-.6 3.2h.35l.4-.4 1.62-2.15 2.72-3.4 1.2-1.35 1.4-1.49.9-.71h1.7l1.25 1.86-.56 1.92-1.75 2.22-1.45 1.88-2.08 2.8-1.3 2.24.12.18.31-.03 4.7-1 2.54-.46 3.03-.52 1.37.64.15.65-.54 1.33-3.24.8-3.8.76-5.66 1.34-.07.05.08.1 2.55.24 1.09.06h2.67l4.97.37 1.3.86.78 1.05-.13.8-2 1.02-2.7-.64-6.3-1.5-2.16-.54h-.3v.18l1.8 1.76 3.3 2.98 4.13 3.84.21.95-.53.75-.56-.08-3.63-2.73-1.4-1.23-3.17-2.67h-.21v.28l.73 1.07 3.86 5.8.2 1.78-.28.58-1 .35-1.1-.2-2.26-3.17-2.33-3.57-1.88-3.2-.23.13-1.11 11.95-.52.61-1.2.46-1-.76-.53-1.23.53-2.43.64-3.17.52-2.52.47-3.13.28-1.04-.02-.07-.23.03-2.36 3.24-3.59 4.85-2.84 3.04-.68.27-1.18-.61.11-1.09.66-.97 3.93-5 2.37-3.1 1.53-1.79-.01-.26h-.09l-10.44 6.78-1.86.24-.8-.75.1-1.23.38-.4 3.14-2.16z" fill="#d97757"/></svg>
+        <img class="th" src="/favicon.png" alt="Technical Hub" />
+      </div>
+
+      <div class="headline">
+        <h1 id="title">Leadership During a Crisis</h1>
+        <p class="sub" id="sub">Leading amid uncertainty</p>
+      </div>
+
+      <div class="meta">
+        <span class="date" id="date">August 9, 2035</span>
+        <span class="time" id="time">9:00 a.m.</span>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="photo" id="photo"></div>
+      <div class="speaker">
+        <div class="name" id="presenter">Samira Hadid</div>
+        <div class="role" id="role">Founder and CEO</div>
+        <div class="org" id="org">Sheetal and Partners, Inc.</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+  </div>
+
+  <script>
+    const q = new URLSearchParams(location.search)
+    const set = (id, key) => { const v = q.get(key); if (v !== null) document.getElementById(id).textContent = v }
+    set('title', 'title')
+    set('sub', 'sub')
+    set('date', 'date')
+    set('time', 'time')
+    set('presenter', 'presenter')
+    set('role', 'role')
+
+    // org line — hide when blank
+    const orgEl = document.getElementById('org')
+    const org = q.get('org')
+    if (org !== null) { if (org.trim()) orgEl.textContent = org; else orgEl.style.display = 'none' }
+
+    // Circle: portrait (photo), initials monogram, or the Claude brandmark (brand).
+    const photoEl = document.getElementById('photo')
+    const photo = q.get('photo')
+    const initials = q.get('initials')
+    const brand = q.get('brand')
+    if (photo) {
+      const img = document.createElement('img')
+      img.src = photo
+      img.alt = ''
+      photoEl.appendChild(img)
+    } else if (brand !== null) {
+      const mark = document.querySelector('.brand .burst').cloneNode(true)
+      mark.setAttribute('class', 'brandmark')
+      photoEl.appendChild(mark)
+    } else if (initials !== null) {
+      const span = document.createElement('span')
+      span.className = 'initials'
+      span.textContent = initials
+      photoEl.appendChild(span)
+    }
+  </script>
+</body>
+</html>

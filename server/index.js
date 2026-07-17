@@ -10,7 +10,6 @@ import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import { Webinar, Booking } from './models.js'
-import { seedWebinars } from './seed.js'
 import { sendWebinarConfirmation } from './mailer.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -123,11 +122,8 @@ mongoose
   .connect(URI)
   .then(async () => {
     console.log('[server] MongoDB connected')
-    const count = await Webinar.countDocuments()
-    if (count === 0) {
-      await Webinar.insertMany(seedWebinars)
-      console.log(`[server] Seeded ${seedWebinars.length} webinars`)
-    }
+    // No auto-seed — the webinar library starts empty and is filled with real
+    // sessions from the admin page (#admin).
     app.listen(PORT, () => console.log(`[server] API running on http://localhost:${PORT}`))
   })
   .catch((err) => {

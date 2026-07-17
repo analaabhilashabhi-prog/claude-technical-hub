@@ -11,9 +11,31 @@ const TABS = [
   { key: 'aiLab', label: 'AI Lab Requests', icon: Cube },
 ]
 
-function toCsv(cfg, rows) {
-  const cols = [...cfg.fields.map((f) => f.name), 'submittedAt']
-  const headers = [...cfg.fields.map((f) => f.label), 'Submitted At']
+// Context columns (beyond the raw form fields) to surface per booking type.
+const EXTRA_COLS = {
+  webinar: [
+    { key: 'webinar', label: 'Webinar' },
+    { key: 'sessionDate', label: 'Session' },
+  ],
+  aiLab: [],
+}
+
+// Dropdown "slicers" per booking type — categorical fields worth filtering by.
+const SLICERS = {
+  webinar: [
+    { key: 'webinar', label: 'Webinar' },
+    { key: 'sessionDate', label: 'Session' },
+    { key: 'organization', label: 'Organization' },
+  ],
+  aiLab: [
+    { key: 'orgType', label: 'Org type' },
+    { key: 'organization', label: 'Organization' },
+  ],
+}
+
+function toCsv(cfg, rows, extra = []) {
+  const cols = [...extra.map((e) => e.key), ...cfg.fields.map((f) => f.name), 'submittedAt']
+  const headers = [...extra.map((e) => e.label), ...cfg.fields.map((f) => f.label), 'Submitted At']
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
   const lines = [headers.map(esc).join(',')]
   rows.forEach((r) => lines.push(cols.map((c) => esc(r[c])).join(',')))
@@ -24,6 +46,8 @@ export default function AdminPage() {
   const [section, setSection] = useState('bookings') // bookings | library
   const [active, setActive] = useState('webinar')
   const [data, setData] = useState({ webinar: [], aiLab: [] })
+  const [filters, setFilters] = useState({}) // { fieldKey: value }
+  const [search, setSearch] = useState('')
 
   const refresh = async () => {
     try {
@@ -38,15 +62,51 @@ export default function AdminPage() {
     refresh()
   }, [])
 
+  // Reset slicers/search when switching between booking types.
+  useEffect(() => {
+    setFilters({})
+    setSearch('')
+  }, [active])
+
   const cfg = bookingForms[active]
   const rows = data[active]
+  const extra = EXTRA_COLS[active] || []
+  const slicers = SLICERS[active] || []
+
+  // Distinct values (with counts) for a slicer field, from the full row set.
+  const distinct = (key) => {
+    const counts = {}
+    rows.forEach((r) => {
+      const v = String(r[key] ?? '').trim()
+      if (v) counts[v] = (counts[v] || 0) + 1
+    })
+    return Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]))
+  }
+
+  const hasFilters = Boolean(search.trim()) || Object.values(filters).some(Boolean)
+  const q = search.trim().toLowerCase()
+  const filtered = rows.filter((r) => {
+    for (const s of slicers) {
+      if (filters[s.key] && String(r[s.key] ?? '') !== filters[s.key]) return false
+    }
+    if (q) {
+      const hay = Object.values(r).map((v) => String(v ?? '')).join(' ').toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    return true
+  })
+
+  const clearFilters = () => {
+    setFilters({})
+    setSearch('')
+  }
 
   const exportCsv = () => {
-    const blob = new Blob([toCsv(cfg, rows)], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob([toCsv(cfg, filtered, extra)], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${cfg.id}-bookings.csv`
+    a.download = `${cfg.id}-bookings${hasFilters ? '-filtered' : ''}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -140,7 +200,11 @@ export default function AdminPage() {
         {/* Toolbar */}
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-white">
-            {cfg.title} <span className="text-white/40">({rows.length})</span>
+            {cfg.title}{' '}
+            <span className="text-white/40">
+              ({filtered.length}
+              {filtered.length !== rows.length ? ` of ${rows.length}` : ''})
+            </span>
           </h2>
           <div className="flex items-center gap-2">
             <button
@@ -151,20 +215,65 @@ export default function AdminPage() {
             </button>
             <button
               onClick={exportCsv}
-              disabled={!rows.length}
+              disabled={!filtered.length}
               className="rounded-lg bg-gradient-to-r from-brand-500 to-brand-400 px-3.5 py-2 text-sm font-semibold text-white hover:shadow-lg hover:shadow-brand-500/25 disabled:opacity-40"
             >
-              Export CSV
+              Export CSV{hasFilters ? ` (${filtered.length})` : ''}
             </button>
             <button
               onClick={clearAll}
               disabled={!rows.length}
               className="rounded-lg border border-claude-500/40 px-3.5 py-2 text-sm font-medium text-claude-400 hover:bg-claude-500/10 disabled:opacity-40"
             >
-              Clear
+              Clear all
             </button>
           </div>
         </div>
+
+        {/* Slicers — search + per-field dropdowns */}
+        {rows.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2.5">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, email, anything…"
+              className="w-full rounded-lg border border-white/15 bg-white/[0.04] px-3.5 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-400/60 sm:w-72"
+            />
+            {slicers.map((s) => {
+              const opts = distinct(s.key)
+              if (!opts.length) return null
+              return (
+                <select
+                  key={s.key}
+                  value={filters[s.key] || ''}
+                  onChange={(e) => setFilters((f) => ({ ...f, [s.key]: e.target.value }))}
+                  className={`appearance-none rounded-lg border px-3.5 py-2 text-sm outline-none transition focus:border-brand-400/60 ${
+                    filters[s.key]
+                      ? 'border-brand-400/50 bg-brand-500/10 text-white'
+                      : 'border-white/15 bg-white/[0.04] text-white/80'
+                  }`}
+                >
+                  <option value="" className="text-black">
+                    All {s.label.toLowerCase()}
+                  </option>
+                  {opts.map(([v, c]) => (
+                    <option key={v} value={v} className="text-black">
+                      {v} ({c})
+                    </option>
+                  ))}
+                </select>
+              )
+            })}
+            {hasFilters && (
+              <button
+                onClick={clearFilters}
+                className="rounded-lg border border-white/15 px-3.5 py-2 text-sm font-medium text-white/70 hover:bg-white/5 hover:text-white"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Table */}
         <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]">
@@ -172,11 +281,23 @@ export default function AdminPage() {
             <div className="p-12 text-center text-sm text-white/40">
               No {cfg.title.toLowerCase()} yet. Submit one from the site to see it here.
             </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-12 text-center text-sm text-white/40">
+              No records match your filters.{' '}
+              <button onClick={clearFilters} className="font-semibold text-brand-300 hover:underline">
+                Clear filters
+              </button>
+            </div>
           ) : (
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wider text-white/40">
                   <th className="px-4 py-3 font-semibold">#</th>
+                  {extra.map((e) => (
+                    <th key={e.key} className="px-4 py-3 font-semibold">
+                      {e.label}
+                    </th>
+                  ))}
                   {cfg.fields.map((f) => (
                     <th key={f.name} className="px-4 py-3 font-semibold">
                       {f.label}
@@ -186,9 +307,14 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
+                {filtered.map((r, i) => (
                   <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03]">
                     <td className="px-4 py-3 text-white/40">{i + 1}</td>
+                    {extra.map((e) => (
+                      <td key={e.key} className="px-4 py-3 font-medium text-white/90">
+                        {r[e.key] || <span className="text-white/25">—</span>}
+                      </td>
+                    ))}
                     {cfg.fields.map((f) => (
                       <td key={f.name} className="px-4 py-3 text-white/80">
                         {r[f.name] || <span className="text-white/25">—</span>}
@@ -481,7 +607,12 @@ function LibraryManager() {
             <h1 className="text-2xl font-bold text-white">
               Webinar Library <span className="text-white/40">({list.length})</span>
             </h1>
-            <p className="mt-1 text-sm text-white/50">Your published webinars &amp; workshops — click a card to edit it.</p>
+            <p className="mt-1 text-sm text-white/50">Your published webinars — click a card to edit it.</p>
+            {list.filter((w) => !w.link).length > 0 && (
+              <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
+                ⚠ {list.filter((w) => !w.link).length} session{list.filter((w) => !w.link).length > 1 ? 's' : ''} missing a join link
+              </span>
+            )}
           </div>
           <button
             onClick={() => openCreate()}
@@ -539,6 +670,11 @@ function LibraryManager() {
                     <span className="absolute left-2.5 top-2.5 rounded-full bg-black/40 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wider text-white backdrop-blur">
                       {w.kind}
                     </span>
+                    {!w.link && (
+                      <span className="absolute bottom-2 left-2.5 rounded-full bg-amber-500/25 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-amber-200 ring-1 ring-amber-400/40 backdrop-blur">
+                        No link
+                      </span>
+                    )}
                     <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition group-hover:opacity-100">
                       <button
                         onClick={() => openEdit(w)}
