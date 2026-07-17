@@ -76,21 +76,30 @@ app.get('/api/bookings/:type', async (req, res, next) => {
 app.post('/api/bookings/:type', async (req, res, next) => {
   try {
     const data = req.body || {}
-    const submittedAt = data.submittedAt ? new Date(data.submittedAt) : new Date()
-    await Booking.create({ type: req.params.type, data, submittedAt })
+    const submittedAt = data.submittedAt
+      ? new Date(data.submittedAt)
+      : new Date()
+
+    // Save to MongoDB
+    await Booking.create({
+      type: req.params.type,
+      data,
+      submittedAt,
+    })
+
+    // Return success
     res.status(201).json({ ok: true })
 
-    // Fire-and-forget confirmation email for webinar registrations.
-    if (req.params.type === 'webinar') {
-      sendWebinarConfirmation(data).catch((err) =>
-        console.error('[mailer] send failed →', err.message)
-      )
-    }
+    // Email disabled
+    // if (req.params.type === 'webinar') {
+    //   sendWebinarConfirmation(data).catch((err) =>
+    //     console.error('[mailer] send failed →', err.message)
+    //   )
+    // }
   } catch (e) {
     next(e)
   }
 })
-
 app.delete('/api/bookings/:type', async (req, res, next) => {
   try {
     await Booking.deleteMany({ type: req.params.type })
