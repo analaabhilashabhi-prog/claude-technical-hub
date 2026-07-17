@@ -18,7 +18,7 @@ export const bookingForms = {
     fields: [
       { name: 'firstName', label: 'First Name', type: 'text', placeholder: 'Jane', icon: User, autoComplete: 'given-name', required: true },
       { name: 'lastName', label: 'Last Name', type: 'text', placeholder: 'Doe', icon: User, autoComplete: 'family-name', required: true },
-      { name: 'organization', label: 'Organization', type: 'text', placeholder: 'Acme Corp', icon: Building, autoComplete: 'organization', required: true, full: true },
+      { name: 'Organization-College Name', label: 'Organization-College Name', type: 'text', placeholder: 'Acme Corp', icon: Building, autoComplete: 'organization', required: true, full: true },
       { name: 'mobile', label: 'Mobile Number', type: 'tel', placeholder: '+91 98765 43210', icon: Phone, autoComplete: 'tel', required: true },
       { name: 'email', label: 'Email', type: 'email', placeholder: 'jane@company.com', icon: Mail, autoComplete: 'email', required: true },
     ],
