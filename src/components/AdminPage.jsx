@@ -337,7 +337,7 @@ export default function AdminPage() {
 }
 
 /* ---------------- Webinar Library manager ---------------- */
-const KINDS = ['Webinar', 'Workshop']
+const KINDS = ['Webinar', 'Workshop',"Training"]
 const FILTERS = [
   ['all', 'All'],
   ['prev', 'Previous'],

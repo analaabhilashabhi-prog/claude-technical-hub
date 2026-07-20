@@ -173,8 +173,7 @@ export const mobileRe =
 
 export const nameRe =
   /^[A-Za-z\s]+$/
-
-eexport const organizationRe =
+export const organizationRe =
 /^[A-Za-z\s]+$/
 // =========================
 // Empty Form

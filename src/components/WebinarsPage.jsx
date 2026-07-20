@@ -416,7 +416,7 @@ export default function WebinarsPage() {
         </ul>
 
         {/* bottom CTA band */}
-        <div
+        {/* <div
           className={`relative mt-14 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-transparent p-8 transition-all duration-300 sm:p-12 ${
             hovered ? 'opacity-30 blur-[2px]' : ''
           }`}
@@ -437,7 +437,7 @@ export default function WebinarsPage() {
               <Arrow className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* backdrop */}
