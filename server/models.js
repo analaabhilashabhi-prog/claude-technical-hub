@@ -31,3 +31,15 @@ const bookingSchema = new mongoose.Schema({
 
 export const Webinar = mongoose.model('Webinar', webinarSchema)
 export const Booking = mongoose.model('Booking', bookingSchema)
+
+// The admin account for the dashboard login. Password is never stored in
+// plain text — only a bcrypt hash. Created/updated via server/seed-admin.js.
+const adminSchema = new mongoose.Schema(
+  {
+    username: { type: String, required: true, unique: true, index: true },
+    passwordHash: { type: String, required: true },
+  },
+  { timestamps: true }
+)
+
+export const Admin = mongoose.model('Admin', adminSchema)

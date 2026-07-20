@@ -11,6 +11,7 @@ import cors from 'cors'
 import mongoose from 'mongoose'
 import { Webinar, Booking } from './models.js'
 import { sendWebinarConfirmation } from './mailer.js'
+import { login, requireAuth } from './auth.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.join(__dirname, '..', 'dist')
@@ -34,7 +35,11 @@ async function webinarList() {
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
 
+/* ---------------- Admin auth ---------------- */
+app.post('/api/admin/login', login)
+
 /* ---------------- Webinar library ---------------- */
+// Public: the #webinars registration page needs to read the library too.
 app.get('/api/webinars', async (_req, res, next) => {
   try {
     res.json(await webinarList())
@@ -43,7 +48,8 @@ app.get('/api/webinars', async (_req, res, next) => {
   }
 })
 
-app.post('/api/webinars', async (req, res, next) => {
+// Admin-only: creating/editing sessions.
+app.post('/api/webinars', requireAuth, async (req, res, next) => {
   try {
     const w = req.body || {}
     if (!w.id) w.id = `session-${Date.now().toString(36)}`
@@ -54,7 +60,8 @@ app.post('/api/webinars', async (req, res, next) => {
   }
 })
 
-app.delete('/api/webinars/:id', async (req, res, next) => {
+// Admin-only: deleting sessions.
+app.delete('/api/webinars/:id', requireAuth, async (req, res, next) => {
   try {
     await Webinar.deleteOne({ id: req.params.id })
     res.json(await webinarList())
@@ -64,7 +71,8 @@ app.delete('/api/webinars/:id', async (req, res, next) => {
 })
 
 /* ---------------- Bookings ---------------- */
-app.get('/api/bookings/:type', async (req, res, next) => {
+// Admin-only: this is the registration data itself — the whole point of the login.
+app.get('/api/bookings/:type', requireAuth, async (req, res, next) => {
   try {
     const docs = await Booking.find({ type: req.params.type }).sort({ submittedAt: -1 }).lean()
     res.json(docs.map((b) => ({ ...b.data, submittedAt: b.submittedAt })))
@@ -73,6 +81,7 @@ app.get('/api/bookings/:type', async (req, res, next) => {
   }
 })
 
+// Public: this is the registration form submit — no login required to register.
 app.post('/api/bookings/:type', async (req, res, next) => {
   try {
     const data = req.body || {}
@@ -100,7 +109,8 @@ app.post('/api/bookings/:type', async (req, res, next) => {
     next(e)
   }
 })
-app.delete('/api/bookings/:type', async (req, res, next) => {
+// Admin-only: wiping booking records.
+app.delete('/api/bookings/:type', requireAuth, async (req, res, next) => {
   try {
     await Booking.deleteMany({ type: req.params.type })
     res.json({ ok: true })

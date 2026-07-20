@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { bookingForms } from '../data/bookingForms'
 import { getWebinars, addWebinar, deleteWebinar, slugify } from '../data/webinarStore'
-import { listBookings, clearBookings } from '../data/api'
+import { listBookings, clearBookings, getAdminToken, clearAdminToken } from '../data/api'
 import { Calendar, Cube, Close, Check, Pencil } from './Icons'
 import { HeroHighlight } from './HeroHighlight'
+import AdminLogin from './AdminLogin'
 import logo from '../assets/darklogo.png'
 
 const TABS = [
@@ -43,11 +44,18 @@ function toCsv(cfg, rows, extra = []) {
 }
 
 export default function AdminPage() {
+  const [authed, setAuthed] = useState(Boolean(getAdminToken()))
+  const [loginNotice, setLoginNotice] = useState('')
   const [section, setSection] = useState('bookings') // bookings | library
   const [active, setActive] = useState('webinar')
   const [data, setData] = useState({ webinar: [], aiLab: [] })
   const [filters, setFilters] = useState({}) // { fieldKey: value }
   const [search, setSearch] = useState('')
+
+  const logout = () => {
+    clearAdminToken()
+    setAuthed(false)
+  }
 
   const refresh = async () => {
     try {
@@ -55,12 +63,28 @@ export default function AdminPage() {
       setData({ webinar, aiLab })
     } catch (err) {
       console.error('[admin] failed to load bookings →', err)
+      if (err.status === 401) {
+        setLoginNotice('Session expired, please log in again.')
+        setAuthed(false)
+      }
     }
   }
 
   useEffect(() => {
-    refresh()
-  }, [])
+    if (authed) refresh()
+  }, [authed])
+
+  if (!authed) {
+    return (
+      <AdminLogin
+        notice={loginNotice}
+        onSuccess={() => {
+          setLoginNotice('')
+          setAuthed(true)
+        }}
+      />
+    )
+  }
 
   // Reset slicers/search when switching between booking types.
   useEffect(() => {
@@ -132,12 +156,20 @@ export default function AdminPage() {
               Admin
             </span>
           </div>
-          <a
-            href="#"
-            className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white"
-          >
-            <Close width={16} height={16} /> Back to site
-          </a>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={logout}
+              className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white"
+            >
+              Log out
+            </button>
+            <a
+              href="#"
+              className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white/70 hover:bg-white/5 hover:text-white"
+            >
+              <Close width={16} height={16} /> Back to site
+            </a>
+          </div>
         </div>
       </header>
 
