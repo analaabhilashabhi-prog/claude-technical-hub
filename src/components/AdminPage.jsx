@@ -252,13 +252,6 @@ export default function AdminPage() {
             >
               Export CSV{hasFilters ? ` (${filtered.length})` : ''}
             </button>
-            <button
-              onClick={clearAll}
-              disabled={!rows.length}
-              className="rounded-lg border border-claude-500/40 px-3.5 py-2 text-sm font-medium text-claude-400 hover:bg-claude-500/10 disabled:opacity-40"
-            >
-              Clear all
-            </button>
           </div>
         </div>
 

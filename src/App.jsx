@@ -13,6 +13,7 @@ import ClaudePowered from './components/ClaudePowered'
 import Testimonials from './components/Testimonials'
 import Contact from './components/Contact'
 import BookingModal from './components/BookingModal'
+import WebinarPopup from './components/WebinarPopup'
 import AdminPage from './components/AdminPage'
 import WebinarsPage from './components/WebinarsPage'
 
@@ -48,6 +49,7 @@ export default function App() {
         </main>
 
         <BookingModal />
+        <WebinarPopup />
       </div>
     </BookingProvider>
   )
