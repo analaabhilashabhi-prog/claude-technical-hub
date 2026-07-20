@@ -12,6 +12,41 @@ const TABS = [
   { key: 'aiLab', label: 'AI Lab Requests', icon: Cube },
 ]
 
+// Data is already sorted newest-first by the server, so index 0 is the latest.
+// Each booking type stores its "name" and "college" under different field keys,
+// since each form has its own fields — map that out here.
+function formatRegTime(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
+function latestSummary(type, list) {
+  const latest = list?.[0]
+  if (!latest) return null
+
+  if (type === 'webinar') {
+    return {
+      time: formatRegTime(latest.submittedAt),
+      name: [latest.firstName, latest.lastName].filter(Boolean).join(' ') || 'Unknown',
+      college: latest['Organization-College Name'] || '—',
+    }
+  }
+  if (type === 'aiLab') {
+    return {
+      time: formatRegTime(latest.submittedAt),
+      name: latest.contactPerson || 'Unknown',
+      college: latest.organization || '—',
+    }
+  }
+  return null
+}
+
 // Context columns (beyond the raw form fields) to surface per booking type.
 const EXTRA_COLS = {
   webinar: [
@@ -207,23 +242,37 @@ export default function AdminPage() {
             const Icon = t.icon
             const count = data[t.key].length
             const isActive = active === t.key
+            const latest = latestSummary(t.key, data[t.key])
             return (
               <button
                 key={t.key}
                 onClick={() => setActive(t.key)}
-                className={`flex items-center gap-4 rounded-2xl border p-5 text-left transition-all ${
+                className={`flex items-center justify-between gap-4 rounded-2xl border p-5 text-left transition-all ${
                   isActive
                     ? 'border-claude-500/40 bg-white/[0.05] shadow-lg shadow-claude-500/10'
                     : 'border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]'
                 }`}
               >
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-claude-500/10 text-claude-400 ring-1 ring-claude-500/20">
-                  <Icon width={24} height={24} />
+                <div className="flex items-center gap-4">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-claude-500/10 text-claude-400 ring-1 ring-claude-500/20">
+                    <Icon width={24} height={24} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{count}</p>
+                    <p className="text-sm text-white/50">{t.label}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold text-white">{count}</p>
-                  <p className="text-sm text-white/50">{t.label}</p>
-                </div>
+
+                {latest && (
+                  <div className="hidden shrink-0 rounded-xl border border-white/10 bg-black/30 px-3.5 py-2 text-right sm:block">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-white/35">
+                      Last registered
+                    </p>
+                    <p className="text-xs font-semibold text-white/85">{latest.time}</p>
+                    <p className="max-w-[160px] truncate text-xs text-white/60">{latest.name}</p>
+                    <p className="max-w-[160px] truncate text-xs text-white/40">{latest.college}</p>
+                  </div>
+                )}
               </button>
             )
           })}
