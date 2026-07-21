@@ -70,6 +70,38 @@ app.delete('/api/webinars/:id', requireAuth, async (req, res, next) => {
   }
 })
 
+/* ---------------- Popup notifications ---------------- */
+// Admin-only: activate / update / turn off a webinar's popup. Stored on the
+// webinar doc under `popup` so it lives with the session it belongs to. Saved
+// on its own (not via the full webinar upsert) so we never resend the poster.
+app.put('/api/webinars/:id/popup', requireAuth, async (req, res, next) => {
+  try {
+    const popup = req.body || {}
+    const result = await Webinar.updateOne({ id: req.params.id }, { $set: { popup } })
+    if (result.matchedCount === 0) return res.status(404).json({ error: 'Webinar not found' })
+    res.json({ ok: true, popup })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Public: the live site reads active popups here. Lean payload — no posters or
+// descriptions, just what the popup card needs to render.
+app.get('/api/popups', async (_req, res, next) => {
+  try {
+    const docs = await Webinar.find({ 'popup.active': true }, { id: 1, title: 1, popup: 1 }).lean()
+    res.json(
+      docs.map((d) => ({
+        id: d.id,
+        webinarTitle: d.title,
+        ...d.popup,
+      }))
+    )
+  } catch (e) {
+    next(e)
+  }
+})
+
 /* ---------------- Bookings ---------------- */
 // Admin-only: this is the registration data itself — the whole point of the login.
 app.get('/api/bookings/:type', requireAuth, async (req, res, next) => {

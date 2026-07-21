@@ -39,6 +39,16 @@ export const createWebinar = (w) => json('/webinars', { method: 'POST', body: JS
 export const removeWebinar = (id) =>
   json(`/webinars/${encodeURIComponent(id)}`, { method: 'DELETE' })
 
+// Popup notifications
+// Public: active popups the live site should show.
+export const listPopups = () => json('/popups')
+// Admin: save/activate/turn off a webinar's popup config.
+export const savePopup = (id, popup) =>
+  json(`/webinars/${encodeURIComponent(id)}/popup`, {
+    method: 'PUT',
+    body: JSON.stringify(popup),
+  })
+
 // Bookings (type = 'webinar' | 'aiLab')
 export const listBookings = (type) => json(`/bookings/${type}`)
 export const createBooking = (type, record) =>

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { bookingForms } from '../data/bookingForms'
 import { getWebinars, addWebinar, deleteWebinar, slugify } from '../data/webinarStore'
-import { listBookings, clearBookings, getAdminToken, clearAdminToken } from '../data/api'
-import { Calendar, Cube, Close, Check, Pencil } from './Icons'
+import { listBookings, clearBookings, getAdminToken, clearAdminToken, savePopup } from '../data/api'
+import { Calendar, Cube, Close, Check, Pencil, Bell } from './Icons'
 import { HeroHighlight } from './HeroHighlight'
 import AdminLogin from './AdminLogin'
 import logo from '../assets/darklogo.png'
@@ -561,7 +561,12 @@ function LibraryManager() {
   const [filter, setFilter] = useState('all')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [popupFor, setPopupFor] = useState(null) // webinar whose popup is being configured
   const fileRef = useRef(null)
+
+  // Reflect a saved popup config back into the local list without a full reload.
+  const onPopupSaved = (id, popup) =>
+    setList((l) => l.map((w) => (w.id === id ? { ...w, popup } : w)))
 
   useEffect(() => {
     let alive = true
@@ -749,7 +754,23 @@ function LibraryManager() {
                         No link
                       </span>
                     )}
+                    {w.popup?.active && (
+                      <span className="absolute bottom-2 right-2.5 inline-flex items-center gap-1 rounded-full bg-claude-500/25 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-claude-200 ring-1 ring-claude-400/40 backdrop-blur">
+                        <Bell width={9} height={9} /> Popup on
+                      </span>
+                    )}
                     <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition group-hover:opacity-100">
+                      <button
+                        onClick={() => setPopupFor(w)}
+                        title="Popup notification"
+                        className={`grid h-7 w-7 place-items-center rounded-full text-white/80 hover:text-white ${
+                          w.popup?.active
+                            ? 'bg-claude-500/80 text-white'
+                            : 'bg-black/50 hover:bg-claude-500/80'
+                        }`}
+                      >
+                        <Bell width={13} height={13} />
+                      </button>
                       <button
                         onClick={() => openEdit(w)}
                         title="Edit"
@@ -926,7 +947,225 @@ function LibraryManager() {
           </div>
         </div>
       )}
+
+      {popupFor && (
+        <PopupConfigModal
+          webinar={popupFor}
+          onClose={() => setPopupFor(null)}
+          onSaved={onPopupSaved}
+        />
+      )}
     </>
+  )
+}
+
+/* ---------------- Popup notification config ---------------- */
+// 12h ("5:00 PM") parts → 24h "HH:MM" for a native time input.
+function to24h(startH, startM, ampm) {
+  if (!startH || !ampm) return ''
+  let h = Number(startH) % 12
+  if (ampm.toUpperCase() === 'PM') h += 12
+  return `${pad(h)}:${startM || '00'}`
+}
+
+// Best-guess popup defaults pulled from the webinar's own date/time/link.
+function popupDefaults(w) {
+  const p = parseTimeStr(w.time)
+  const durMatch = (p.duration || '').match(/(\d+)/)
+  const fromDate = w.dateISO || toISOFromDisplay(w.date) || ''
+  return {
+    active: true,
+    title: w.title || '',
+    singleDay: true,
+    fromDate,
+    toDate: fromDate,
+    popupStartTime: '16:00',
+    webinarStartTime: to24h(p.startH, p.startM, p.ampm) || '18:00',
+    durationMinutes: durMatch ? Number(durMatch[1]) : 60,
+    joinLink: w.link || '',
+  }
+}
+
+function PopupConfigModal({ webinar, onClose, onSaved }) {
+  const existing = webinar.popup
+  const [cfg, setCfg] = useState(() => ({ ...popupDefaults(webinar), ...(existing || {}) }))
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const wasActive = Boolean(existing?.active)
+
+  const set = (k, v) => setCfg((c) => ({ ...c, [k]: v }))
+
+  const input =
+    'w-full rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-400/60'
+
+  const persist = async (active) => {
+    if (active) {
+      if (!cfg.title.trim()) return setError('Title is required.')
+      if (!cfg.fromDate) return setError('Pick a start date.')
+      if (!cfg.singleDay && cfg.toDate && cfg.toDate < cfg.fromDate)
+        return setError('The “To” date can’t be before the “From” date.')
+      if (!cfg.popupStartTime || !cfg.webinarStartTime)
+        return setError('Set both the popup start time and the webinar start time.')
+      if (!cfg.joinLink.trim()) return setError('Add the join link the button should open.')
+    }
+    setError('')
+    const payload = {
+      ...cfg,
+      active,
+      toDate: cfg.singleDay ? cfg.fromDate : cfg.toDate || cfg.fromDate,
+      durationMinutes: Number(cfg.durationMinutes) || 60,
+    }
+    setSaving(true)
+    try {
+      await savePopup(webinar.id, payload)
+      onSaved(webinar.id, payload)
+      onClose()
+    } catch (err) {
+      console.error('[admin] popup save failed →', err)
+      setError('Could not save — is the API server running?')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative my-8 w-full max-w-lg rounded-3xl border border-white/10 bg-neutral-950 p-6 sm:p-8">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
+        >
+          <Close width={18} height={18} />
+        </button>
+        <h2 className="flex items-center gap-2 text-2xl font-bold text-white">
+          <Bell width={20} height={20} className="text-claude-400" /> Popup notification
+        </h2>
+        <p className="mt-1 text-sm text-white/50">
+          For <span className="font-semibold text-white/80">{webinar.title}</span>. All times are IST.
+        </p>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">Title</label>
+            <input value={cfg.title} onChange={(e) => set('title', e.target.value)} className={input} />
+          </div>
+
+          {/* Single-day toggle */}
+          <div className="sm:col-span-2">
+            <button
+              type="button"
+              onClick={() => set('singleDay', !cfg.singleDay)}
+              className="flex items-center gap-3"
+            >
+              <span
+                className={`relative h-6 w-11 rounded-full transition ${
+                  cfg.singleDay ? 'bg-brand-500' : 'bg-white/15'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                    cfg.singleDay ? 'left-[1.375rem]' : 'left-0.5'
+                  }`}
+                />
+              </span>
+              <span className="text-sm font-medium text-white/80">Run for a single day only</span>
+            </button>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">
+              {cfg.singleDay ? 'Date' : 'From'}
+            </label>
+            <input
+              type="date"
+              value={cfg.fromDate}
+              onChange={(e) => set('fromDate', e.target.value)}
+              className={`${input} [color-scheme:dark]`}
+            />
+          </div>
+          {!cfg.singleDay && (
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-white/80">To</label>
+              <input
+                type="date"
+                value={cfg.toDate}
+                min={cfg.fromDate}
+                onChange={(e) => set('toDate', e.target.value)}
+                className={`${input} [color-scheme:dark]`}
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">Popup starts appearing</label>
+            <input
+              type="time"
+              value={cfg.popupStartTime}
+              onChange={(e) => set('popupStartTime', e.target.value)}
+              className={`${input} [color-scheme:dark]`}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">Webinar start time</label>
+            <input
+              type="time"
+              value={cfg.webinarStartTime}
+              onChange={(e) => set('webinarStartTime', e.target.value)}
+              className={`${input} [color-scheme:dark]`}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">Duration (minutes)</label>
+            <input
+              type="number"
+              min="1"
+              value={cfg.durationMinutes}
+              onChange={(e) => set('durationMinutes', e.target.value)}
+              className={input}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">Join link</label>
+            <input
+              value={cfg.joinLink}
+              onChange={(e) => set('joinLink', e.target.value)}
+              placeholder="https://teams.microsoft.com/…"
+              className={input}
+            />
+          </div>
+
+          {!cfg.singleDay && (
+            <p className="-mt-1 text-xs text-white/40 sm:col-span-2">
+              The popup repeats every day in this range using the same times.
+            </p>
+          )}
+          {error && <p className="text-sm text-claude-400 sm:col-span-2">{error}</p>}
+
+          <div className="mt-1 flex flex-wrap gap-3 sm:col-span-2">
+            <button
+              type="button"
+              onClick={() => persist(true)}
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-claude-400 to-claude-600 px-6 py-3 text-sm font-bold text-black transition hover:-translate-y-0.5 disabled:opacity-60"
+            >
+              {saving ? 'Saving…' : wasActive ? 'Save changes' : 'Activate popup'}
+            </button>
+            {wasActive && (
+              <button
+                type="button"
+                onClick={() => persist(false)}
+                disabled={saving}
+                className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/5 disabled:opacity-60"
+              >
+                Turn off
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
