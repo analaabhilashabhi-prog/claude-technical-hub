@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { getWebinars } from '../data/webinarStore'
-import { createBooking } from '../data/api'
+import { createBooking, listColleges, checkRegistration } from '../data/api'
 import { bookingForms, emptyFormFor, validateForm } from '../data/bookingForms'
+import { INDIAN_STATES, COURSES } from '../data/formOptions'
+import { STATE_CITIES } from '../data/indiaCities'
 import { buildEvent, googleUrl, downloadICS } from '../data/calendar'
 import { Arrow, Check, Close, Calendar } from './Icons'
 import { useOutsideClick } from '../hooks/useOutsideClick'
@@ -84,22 +86,90 @@ function PosterBg({ w, small }) {
 
 /* ---------- Registration form (inside the expanded card) ---------- */
 function RegisterForm({ w, onDone }) {
-  const [form, setForm] = useState(() => emptyFormFor(cfg))
+  const [form, setForm] = useState({
+    firstName: '', lastName: '', state: '', city: '', college: '', collegeId: '', course: '', mobile: '', email: '',
+  })
   const [errors, setErrors] = useState({})
+  const [sug, setSug] = useState([]) // college suggestions
+  const [sugOpen, setSugOpen] = useState(false)
+  const [dup, setDup] = useState({}) // { email, mobile } — soft pre-submit warnings
   const [done, setDone] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
 
   const set = (name, val) => setForm((f) => ({ ...f, [name]: val }))
 
+  // Changing state clears the downstream city/college.
+  useEffect(() => {
+    setForm((f) => ({ ...f, city: '', college: '', collegeId: '' }))
+  }, [form.state])
+
+  // Debounced college suggestions from names already in the database (skipped
+  // once a suggestion is picked).
+  useEffect(() => {
+    if (form.collegeId || form.college.trim().length < 1) {
+      setSug([])
+      return
+    }
+    let alive = true
+    const t = setTimeout(() => {
+      listColleges({ q: form.college.trim() })
+        .then((list) => alive && setSug(list))
+        .catch(() => {})
+    }, 250)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+  }, [form.college, form.collegeId])
+
+  const pickCollege = (c) => {
+    setForm((f) => ({ ...f, college: c.name, collegeId: c.id }))
+    setSugOpen(false)
+    setSug([])
+  }
+
+  // Warn early if this email/mobile already registered for this webinar.
+  const checkDup = async () => {
+    if (!w.id) return
+    try {
+      const r = await checkRegistration({ webinarId: w.id, email: form.email, mobile: form.mobile })
+      setDup({ email: r.emailTaken, mobile: r.mobileTaken })
+    } catch {
+      /* ignore — this is only a hint; the server enforces on submit */
+    }
+  }
+
+  const validate = (f) => {
+    const e = {}
+    if (!f.firstName.trim()) e.firstName = 'Required'
+    else if (!/^[A-Za-z][A-Za-z\s.'-]*$/.test(f.firstName.trim())) e.firstName = 'Letters only'
+    if (f.lastName.trim() && !/^[A-Za-z\s.'-]+$/.test(f.lastName.trim())) e.lastName = 'Letters only'
+    if (!f.state) e.state = 'Select your state'
+    if (!f.city.trim()) e.city = 'Select your city'
+    if (!f.college.trim()) e.college = 'Select your college'
+    if (!f.course) e.course = 'Select your course'
+    if (!/^[6-9]\d{9}$/.test(f.mobile.replace(/\D/g, '').slice(-10))) e.mobile = 'Valid 10-digit mobile (6–9)'
+    if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(f.email.trim())) e.email = 'Valid email required'
+    return e
+  }
+
   const submit = async (e) => {
     e.preventDefault()
-    const errs = validateForm(cfg, form)
+    const errs = validate(form)
     setErrors(errs)
     if (Object.keys(errs).length) return
     const record = {
-      ...form,
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      email: form.email.trim().toLowerCase(),
+      mobile: form.mobile.replace(/\D/g, '').slice(-10),
+      state: form.state,
+      city: form.city.trim(),
+      course: form.course,
+      college: form.college.trim(),
       webinar: w.title,
+      webinarId: w.id,
       kind: w.kind,
       sessionDate: w.date,
       sessionDateISO: w.dateISO || '',
@@ -123,11 +193,24 @@ function RegisterForm({ w, onDone }) {
       setLoading(false)
       setDone(true)
     } catch (err) {
-      console.error('[register] save failed →', err)
       setLoading(false)
-      setSaveError('Could not register right now. Please try again in a moment.')
+      if (err.status === 409) {
+        setSaveError(err.message)
+        if (err.body?.field) setDup((d) => ({ ...d, [err.body.field]: true }))
+      } else if (err.status === 400 && err.body?.fields) {
+        setErrors(err.body.fields)
+        setSaveError('Please fix the highlighted fields.')
+      } else {
+        console.error('[register] save failed →', err)
+        setSaveError('Could not register right now. Please try again in a moment.')
+      }
     }
   }
+
+  const inputCls = (bad) =>
+    `w-full rounded-xl border bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-400/60 ${
+      bad ? 'border-red-500/60' : 'border-white/10'
+    }`
 
   if (done) {
     const event = buildEvent(w)
@@ -193,39 +276,202 @@ function RegisterForm({ w, onDone }) {
 
   return (
     <>
-    <MultiStepLoader loadingStates={REGISTER_STEPS} loading={loading} duration={STEP_MS} loop={false} />
-    <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-3.5 px-6 pb-8 pt-2 sm:grid-cols-2">
-      <p className="text-sm text-white/55 sm:col-span-2">All fields are required.</p>
-      {cfg.fields.map((f) => (
-        <div key={f.name} className={f.full ? 'sm:col-span-2' : ''}>
-          <label htmlFor={f.name} className="mb-1 block text-xs font-semibold text-white/70">
-            {f.label}
-          </label>
-          <input
-            id={f.name}
-            type={f.type}
-            autoComplete={f.autoComplete}
-            placeholder={f.placeholder}
-            value={form[f.name]}
-            onChange={(e) => set(f.name, e.target.value)}
-            className={`w-full rounded-xl border bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-400/60 ${
-              errors[f.name] ? 'border-red-500/60' : 'border-white/10'
-            }`}
+      <MultiStepLoader loadingStates={REGISTER_STEPS} loading={loading} duration={STEP_MS} loop={false} />
+      <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-3.5 px-6 pb-8 pt-2 sm:grid-cols-2">
+        <p className="text-xs text-white/45 sm:col-span-2">All fields required unless marked optional.</p>
+
+        <RField label="First name" bad={errors.firstName}>
+          <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} placeholder="Jane" className={inputCls(errors.firstName)} />
+        </RField>
+        <RField label="Last name (optional)" bad={errors.lastName}>
+          <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} placeholder="Doe" className={inputCls(errors.lastName)} />
+        </RField>
+
+        <RField label="State" bad={errors.state}>
+          <SearchSelect
+            value={form.state}
+            onChange={(v) => set('state', v)}
+            options={INDIAN_STATES}
+            placeholder="Search state…"
+            error={errors.state}
           />
-          {errors[f.name] && <p className="mt-1 text-xs text-red-400">{errors[f.name]}</p>}
+        </RField>
+        <RField label="City" bad={errors.city}>
+          <SearchSelect
+            value={form.city}
+            onChange={(v) => set('city', v)}
+            options={STATE_CITIES[form.state] || []}
+            placeholder={form.state ? 'Search city…' : 'Select a state first'}
+            disabled={!form.state}
+            error={errors.city}
+          />
+        </RField>
+
+        <div className="relative sm:col-span-2">
+          <RField label="College / Organization" bad={errors.college}>
+            <input
+              value={form.college}
+              onChange={(e) => {
+                set('college', e.target.value)
+                set('collegeId', '')
+                setSugOpen(true)
+              }}
+              onFocus={() => setSugOpen(true)}
+              onBlur={() => setTimeout(() => setSugOpen(false), 150)}
+              placeholder={form.state ? 'Start typing your college…' : 'Select a state first'}
+              disabled={!form.state}
+              className={inputCls(errors.college)}
+            />
+          </RField>
+          {sugOpen && form.college.trim() && !form.collegeId && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 p-1 shadow-xl">
+              {sug.length ? (
+                sug.map((c) => (
+                  <button
+                    type="button"
+                    key={c.id}
+                    onMouseDown={() => pickCollege(c)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs text-white/80 hover:bg-white/5"
+                  >
+                    <span className="truncate">{c.name}</span>
+                    {c.count > 1 && <span className="shrink-0 text-white/35">{c.count}×</span>}
+                  </button>
+                ))
+              ) : (
+                <p className="px-3 py-2 text-xs text-white/40">
+                  No match — we’ll add “{form.college.trim()}” as a new college.
+                </p>
+              )}
+            </div>
+          )}
         </div>
-      ))}
-      {saveError && <p className="text-sm text-red-400 sm:col-span-2">{saveError}</p>}
-      <button
-        type="submit"
-        disabled={loading}
-        className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-60 sm:col-span-2"
-      >
-        Confirm Registration
-        <Arrow className="h-4 w-4" />
-      </button>
-    </form>
+
+        <RField label="Course / Program" bad={errors.course}>
+          <SearchSelect
+            value={form.course}
+            onChange={(v) => set('course', v)}
+            options={COURSES}
+            placeholder="Search course…"
+            error={errors.course}
+          />
+        </RField>
+        <RField label="Mobile" bad={errors.mobile}>
+          <input
+            value={form.mobile}
+            onChange={(e) => set('mobile', e.target.value)}
+            onBlur={checkDup}
+            placeholder="9876543210"
+            inputMode="numeric"
+            className={inputCls(errors.mobile)}
+          />
+          {dup.mobile && !errors.mobile && (
+            <p className="mt-1 text-xs text-amber-400">This mobile is already registered for this webinar.</p>
+          )}
+        </RField>
+
+        <RField label="Email" bad={errors.email} full>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => set('email', e.target.value)}
+            onBlur={checkDup}
+            placeholder="jane@college.edu"
+            className={inputCls(errors.email)}
+          />
+          {dup.email && !errors.email && (
+            <p className="mt-1 text-xs text-amber-400">This email is already registered for this webinar.</p>
+          )}
+        </RField>
+
+        {saveError && <p className="text-sm text-red-400 sm:col-span-2">{saveError}</p>}
+        <button
+          type="submit"
+          disabled={loading}
+          className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-60 sm:col-span-2"
+        >
+          Confirm Registration
+          <Arrow className="h-4 w-4" />
+        </button>
+      </form>
     </>
+  )
+}
+
+function RField({ label, bad, full, children }) {
+  return (
+    <div className={full ? 'sm:col-span-2' : ''}>
+      <label className="mb-1 block text-xs font-semibold text-white/70">{label}</label>
+      {children}
+      {typeof bad === 'string' && <p className="mt-1 text-xs text-red-400">{bad}</p>}
+    </div>
+  )
+}
+
+// Searchable dropdown constrained to a fixed list — you can type to filter, but
+// a value only commits by picking an option (so no free-text variants sneak in).
+function SearchSelect({ value, onChange, options, placeholder, disabled, error }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+
+  const q = query.trim().toLowerCase()
+  const filtered = q ? options.filter((o) => o.toLowerCase().includes(q)) : options
+
+  const cls = `w-full rounded-xl border bg-white/[0.04] px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-400/60 ${
+    error ? 'border-red-500/60' : 'border-white/10'
+  } ${open || value ? 'text-white' : 'text-white/40'} disabled:opacity-50`
+
+  return (
+    <div className="relative" ref={ref}>
+      <input
+        value={open ? query : value}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          setOpen(true)
+        }}
+        onFocus={() => {
+          if (!disabled) {
+            setOpen(true)
+            setQuery('')
+          }
+        }}
+        placeholder={placeholder}
+        disabled={disabled}
+        className={cls}
+      />
+      {open && !disabled && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/10 bg-neutral-900 p-1 shadow-xl">
+          {filtered.length ? (
+            filtered.map((o) => (
+              <button
+                type="button"
+                key={o}
+                onMouseDown={() => {
+                  onChange(o)
+                  setOpen(false)
+                  setQuery('')
+                }}
+                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-xs hover:bg-white/5 ${
+                  o === value ? 'text-brand-300' : 'text-white/80'
+                }`}
+              >
+                {o}
+              </button>
+            ))
+          ) : (
+            <p className="px-3 py-2 text-xs text-white/40">No match</p>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

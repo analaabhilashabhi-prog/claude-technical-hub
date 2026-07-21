@@ -22,12 +22,31 @@ const webinarSchema = new mongoose.Schema(
 
 // Every form submission (webinar registration or AI-lab request). We store the
 // raw form payload under `data` so the admin table can render whatever fields
-// the form config defines, without a rigid schema.
+// the form config defines, without a rigid schema. The normalized keys
+// (emailNorm/mobileNorm/webinarId) are lifted to the top level so we can index
+// them and enforce "no duplicate registration per webinar" at the DB layer.
 const bookingSchema = new mongoose.Schema({
   type: { type: String, index: true }, // 'webinar' | 'aiLab'
   data: { type: mongoose.Schema.Types.Mixed, default: {} },
   submittedAt: { type: Date, default: Date.now },
+  // canonical dedup keys (only set for webinar registrations)
+  webinarId: { type: String },
+  emailNorm: { type: String },
+  mobileNorm: { type: String },
 })
+
+// Hard backstop against duplicate registrations, even under race conditions:
+// the same webinar can't take the same normalized email or mobile twice. Partial
+// filters keep these scoped to webinar rows that actually have the keys, so old
+// records (and aiLab rows) are never affected.
+bookingSchema.index(
+  { webinarId: 1, emailNorm: 1 },
+  { unique: true, partialFilterExpression: { type: 'webinar', webinarId: { $type: 'string' }, emailNorm: { $type: 'string' } } }
+)
+bookingSchema.index(
+  { webinarId: 1, mobileNorm: 1 },
+  { unique: true, partialFilterExpression: { type: 'webinar', webinarId: { $type: 'string' }, mobileNorm: { $type: 'string' } } }
+)
 
 export const Webinar = mongoose.model('Webinar', webinarSchema)
 export const Booking = mongoose.model('Booking', bookingSchema)

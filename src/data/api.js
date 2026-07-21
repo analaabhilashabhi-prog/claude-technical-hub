@@ -22,8 +22,17 @@ async function json(path, opts = {}) {
     throw err
   }
   if (!res.ok) {
-    const err = new Error(`${opts.method || 'GET'} ${path} → ${res.status}`)
+    // Surface the server's error body (message + field info) so callers can
+    // show friendly, specific messages (e.g. "email already registered").
+    let body = null
+    try {
+      body = await res.json()
+    } catch {
+      /* no JSON body */
+    }
+    const err = new Error(body?.error || `${opts.method || 'GET'} ${path} → ${res.status}`)
     err.status = res.status
+    err.body = body
     throw err
   }
   return res.status === 204 ? null : res.json()
@@ -54,3 +63,13 @@ export const listBookings = (type) => json(`/bookings/${type}`)
 export const createBooking = (type, record) =>
   json(`/bookings/${type}`, { method: 'POST', body: JSON.stringify(record) })
 export const clearBookings = (type) => json(`/bookings/${type}`, { method: 'DELETE' })
+
+// Colleges (canonical master) — typeahead suggestions for the register form.
+const qs = (params) => {
+  const s = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()
+  return s ? `?${s}` : ''
+}
+export const listColleges = (params = {}) => json(`/colleges${qs(params)}`)
+
+// Has this email/mobile already registered for the webinar? (pre-submit warning)
+export const checkRegistration = (params = {}) => json(`/bookings/webinar/check${qs(params)}`)

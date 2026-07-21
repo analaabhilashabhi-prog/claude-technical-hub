@@ -12,6 +12,9 @@ import mongoose from 'mongoose'
 import { Webinar, Booking } from './models.js'
 import { sendWebinarConfirmation } from './mailer.js'
 import { login, requireAuth } from './auth.js'
+import { canonicalEmail, normalizeMobile, cleanText, isValidEmail, isValidMobile } from './normalize.js'
+
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.join(__dirname, '..', 'dist')
@@ -102,6 +105,36 @@ app.get('/api/popups', async (_req, res, next) => {
   }
 })
 
+/* ---------------- College suggestions ---------------- */
+// Public: typeahead suggestions drawn from the college names already in the
+// registration data. New colleges entered by registrants land in this same data,
+// so they automatically become suggestions for the next person. Grouped
+// case-insensitively and ranked by how often each name appears.
+app.get('/api/colleges', async (req, res, next) => {
+  try {
+    const q = String(req.query.q || '').trim()
+    const pipeline = [
+      { $match: { type: 'webinar' } },
+      {
+        $project: {
+          name: { $ifNull: ['$data.college', { $getField: { field: 'Organization-College Name', input: '$data' } }] },
+        },
+      },
+      { $match: { name: { $type: 'string', $ne: '' } } },
+    ]
+    if (q) pipeline.push({ $match: { name: { $regex: escapeRegex(q), $options: 'i' } } })
+    pipeline.push(
+      { $group: { _id: { $toLower: '$name' }, name: { $first: '$name' }, count: { $sum: 1 } } },
+      { $sort: { count: -1, name: 1 } },
+      { $limit: 20 }
+    )
+    const rows = await Booking.aggregate(pipeline)
+    res.json(rows.map((r) => ({ id: r._id, name: r.name, count: r.count })))
+  } catch (e) {
+    next(e)
+  }
+})
+
 /* ---------------- Bookings ---------------- */
 // Admin-only: this is the registration data itself — the whole point of the login.
 app.get('/api/bookings/:type', requireAuth, async (req, res, next) => {
@@ -113,34 +146,97 @@ app.get('/api/bookings/:type', requireAuth, async (req, res, next) => {
   }
 })
 
-// Public: this is the registration form submit — no login required to register.
-app.post('/api/bookings/:type', async (req, res, next) => {
+// Public: has a webinar's email/mobile already registered? Lets the form warn
+// before submit. Must be declared before the admin GET /bookings/:type route.
+app.get('/api/bookings/webinar/check', async (req, res, next) => {
   try {
-    const data = req.body || {}
-    const submittedAt = data.submittedAt
-      ? new Date(data.submittedAt)
-      : new Date()
-
-    // Save to MongoDB
-    await Booking.create({
-      type: req.params.type,
-      data,
-      submittedAt,
-    })
-
-    // Return success
-    res.status(201).json({ ok: true })
-
-    // Email disabled
-    // if (req.params.type === 'webinar') {
-    //   sendWebinarConfirmation(data).catch((err) =>
-    //     console.error('[mailer] send failed →', err.message)
-    //   )
-    // }
+    const { webinarId, email, mobile } = req.query
+    if (!webinarId) return res.json({ emailTaken: false, mobileTaken: false })
+    const emailNorm = canonicalEmail(email || '')
+    const mobileNorm = normalizeMobile(mobile || '')
+    const [e, m] = await Promise.all([
+      emailNorm ? Booking.exists({ type: 'webinar', webinarId, emailNorm }) : null,
+      mobileNorm ? Booking.exists({ type: 'webinar', webinarId, mobileNorm }) : null,
+    ])
+    res.json({ emailTaken: Boolean(e), mobileTaken: Boolean(m) })
   } catch (e) {
     next(e)
   }
 })
+
+// Public: this is the registration form submit — no login required to register.
+app.post('/api/bookings/:type', async (req, res, next) => {
+  try {
+    const data = { ...(req.body || {}) }
+    const submittedAt = data.submittedAt ? new Date(data.submittedAt) : new Date()
+
+    if (req.params.type === 'webinar') return await registerWebinar(data, submittedAt, res)
+
+    await Booking.create({ type: req.params.type, data, submittedAt })
+    res.status(201).json({ ok: true })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Hardened webinar registration: normalize → validate → block duplicates →
+// resolve/create canonical college → store with dedup keys.
+async function registerWebinar(data, submittedAt, res) {
+  const firstName = cleanText(data.firstName)
+  const lastName = cleanText(data.lastName)
+  const emailRaw = String(data.email ?? '').trim()
+  const emailNorm = canonicalEmail(emailRaw)
+  const mobileNorm = normalizeMobile(data.mobile)
+  const state = cleanText(data.state)
+  const city = cleanText(data.city)
+  const collegeName = cleanText(data.college ?? data['Organization-College Name'])
+  const course = cleanText(data.course)
+  const webinarId = cleanText(data.webinarId)
+
+  // server-authoritative validation (never trust the client)
+  const fields = {}
+  if (!firstName) fields.firstName = 'First name is required'
+  if (!emailRaw || !isValidEmail(emailRaw)) fields.email = 'A valid email is required'
+  if (!isValidMobile(data.mobile)) fields.mobile = 'A valid 10-digit mobile (starting 6–9) is required'
+  if (!collegeName) fields.college = 'College is required'
+  if (!webinarId) fields.webinar = 'Missing webinar reference — please reopen and try again'
+  if (Object.keys(fields).length) {
+    return res.status(400).json({ error: 'Please check the highlighted fields.', fields })
+  }
+
+  // duplicate guard: same email OR mobile already registered for THIS webinar
+  const clash = await Booking.findOne({ type: 'webinar', webinarId, $or: [{ emailNorm }, { mobileNorm }] }).lean()
+  if (clash) {
+    const which = clash.emailNorm === emailNorm ? 'email' : 'mobile'
+    return res.status(409).json({ error: `This ${which} is already registered for this webinar.`, field: which })
+  }
+
+  const record = {
+    ...data,
+    firstName,
+    lastName,
+    email: emailRaw.toLowerCase(),
+    mobile: normalizeMobile(data.mobile),
+    state,
+    city,
+    course,
+    college: collegeName,
+    'Organization-College Name': collegeName, // keep legacy field in sync for the table/analytics
+    webinarId,
+  }
+
+  try {
+    await Booking.create({ type: 'webinar', data: record, submittedAt, webinarId, emailNorm, mobileNorm })
+  } catch (e) {
+    // unique-index backstop for race conditions
+    if (e && e.code === 11000) {
+      return res.status(409).json({ error: 'This email or mobile is already registered for this webinar.' })
+    }
+    throw e
+  }
+
+  res.status(201).json({ ok: true })
+}
 // Admin-only: wiping booking records.
 app.delete('/api/bookings/:type', requireAuth, async (req, res, next) => {
   try {
