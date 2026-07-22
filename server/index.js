@@ -9,8 +9,10 @@ import { fileURLToPath } from 'node:url'
 import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
-import { Webinar, Booking } from './models.js'
-import { sendOtpEmail, sendWebinarConfirmation } from './mailer.js'
+import { Webinar, Booking, MergeLog } from './models.js'
+// PARKED (kept for later): email features — sendOtpEmail, sendWebinarConfirmation.
+// Restore from git commit e42ec41 when re-enabling OTP + welcome email.
+// import { sendOtpEmail, sendWebinarConfirmation } from './mailer.js'
 import { login, requireAuth } from './auth.js'
 import { canonicalEmail, normalizeMobile, cleanText, isValidEmail, isValidMobile } from './normalize.js'
 
@@ -120,7 +122,10 @@ app.get('/api/popups', async (_req, res, next) => {
   }
 })
 
-/* ---------------- Email OTP ---------------- */
+/* ---------------- Email OTP (PARKED) ---------------- */
+// PARKED — re-enable together with the email features. Full code preserved in
+// git commit e42ec41. Kept here as a comment for easy reference.
+/*
 // Public: send a verification code to the given email.
 app.post('/api/otp/send', async (req, res, next) => {
   try {
@@ -163,6 +168,7 @@ app.post('/api/otp/verify', (req, res) => {
   rec.verifiedUntil = now + OTP_VERIFY_WINDOW_MS
   res.json({ ok: true })
 })
+*/
 
 /* ---------------- College suggestions ---------------- */
 // Public: typeahead suggestions drawn from the college names already in the
@@ -189,6 +195,83 @@ app.get('/api/colleges', async (req, res, next) => {
     )
     const rows = await Booking.aggregate(pipeline)
     res.json(rows.map((r) => ({ id: r._id, name: r.name, count: r.count })))
+  } catch (e) {
+    next(e)
+  }
+})
+
+/* ---------------- Data cleanup: organization name merge ---------------- */
+const ORG_FIELD = 'Organization-College Name'
+const orgMatch = (names) => ({
+  type: 'webinar',
+  $or: [{ [`data.${ORG_FIELD}`]: { $in: names } }, { 'data.college': { $in: names } }],
+})
+
+// Admin: every distinct organization name in webinar registrations + its count.
+// Grouped by exact spelling so the admin can see and pick the variants to merge.
+app.get('/api/admin/org-names', requireAuth, async (_req, res, next) => {
+  try {
+    const rows = await Booking.aggregate([
+      { $match: { type: 'webinar' } },
+      { $project: { name: { $ifNull: ['$data.college', { $getField: { field: ORG_FIELD, input: '$data' } }] } } },
+      { $match: { name: { $type: 'string', $ne: '' } } },
+      { $group: { _id: '$name', count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ])
+    res.json(rows.map((r) => ({ name: r._id, count: r.count })))
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Admin: merge selected variant names into one final name. Reversible — every
+// affected record's original name is stored in a MergeLog for one-click undo.
+app.post('/api/admin/merge-orgs', requireAuth, async (req, res, next) => {
+  try {
+    const names = Array.isArray(req.body?.names) ? [...new Set(req.body.names.filter(Boolean))] : []
+    const target = cleanText(req.body?.target)
+    if (!names.length || !target) {
+      return res.status(400).json({ error: 'Select at least one name and enter the final name.' })
+    }
+    const q = orgMatch(names)
+    const docs = await Booking.find(q).lean()
+    const changes = docs
+      .map((d) => ({ id: String(d._id), from: d.data?.[ORG_FIELD] ?? d.data?.college ?? '' }))
+      .filter((c) => c.from && c.from !== target)
+    if (!changes.length) return res.json({ ok: true, count: 0, message: 'Nothing to change — already that name.' })
+
+    await Booking.updateMany(q, { $set: { [`data.${ORG_FIELD}`]: target, 'data.college': target } })
+    const log = await MergeLog.create({ field: ORG_FIELD, to: target, from: names, count: changes.length, changes })
+    res.json({ ok: true, count: changes.length, logId: String(log._id) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Admin: recent merges, for the undo list.
+app.get('/api/admin/merge-logs', requireAuth, async (_req, res, next) => {
+  try {
+    const logs = await MergeLog.find().sort({ createdAt: -1 }).limit(30).lean()
+    res.json(
+      logs.map((l) => ({ id: String(l._id), to: l.to, from: l.from, count: l.count, undone: l.undone, createdAt: l.createdAt }))
+    )
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Admin: undo a merge — restore each affected record's original name.
+app.post('/api/admin/merge-orgs/undo', requireAuth, async (req, res, next) => {
+  try {
+    const log = await MergeLog.findById(req.body?.logId)
+    if (!log || log.undone) return res.status(400).json({ error: 'Merge not found or already undone.' })
+    const ops = log.changes.map((c) => ({
+      updateOne: { filter: { _id: c.id }, update: { $set: { [`data.${ORG_FIELD}`]: c.from, 'data.college': c.from } } },
+    }))
+    if (ops.length) await Booking.bulkWrite(ops)
+    log.undone = true
+    await log.save()
+    res.json({ ok: true, restored: ops.length })
   } catch (e) {
     next(e)
   }
@@ -263,11 +346,11 @@ async function registerWebinar(data, submittedAt, res) {
     return res.status(400).json({ error: 'Please check the highlighted fields.', fields })
   }
 
-  // require a recently-verified OTP for this email (server-enforced, not bypassable)
-  const otpRec = otpStore.get(emailNorm)
-  if (!otpRec || otpRec.verifiedUntil < Date.now()) {
-    return res.status(403).json({ error: 'Please verify your email with the code we sent.', field: 'email' })
-  }
+  // PARKED — email OTP verification (re-enable with the email features; commit e42ec41):
+  // const otpRec = otpStore.get(emailNorm)
+  // if (!otpRec || otpRec.verifiedUntil < Date.now()) {
+  //   return res.status(403).json({ error: 'Please verify your email with the code we sent.', field: 'email' })
+  // }
 
   // duplicate guard: same email OR mobile already registered for THIS webinar
   const clash = await Booking.findOne({ type: 'webinar', webinarId, $or: [{ emailNorm }, { mobileNorm }] }).lean()
@@ -300,9 +383,9 @@ async function registerWebinar(data, submittedAt, res) {
     throw e
   }
 
-  otpStore.delete(emailNorm) // one-time use — code can't be reused
-  // Fire-and-forget the branded welcome email (don't block the response on it).
-  sendWebinarConfirmation(record).catch((err) => console.error('[mailer] welcome failed →', err.message))
+  // PARKED — one-time OTP consume + branded welcome email (re-enable with email features; commit e42ec41):
+  // otpStore.delete(emailNorm)
+  // sendWebinarConfirmation(record).catch((err) => console.error('[mailer] welcome failed →', err.message))
   res.status(201).json({ ok: true })
 }
 // Admin-only: wiping booking records.

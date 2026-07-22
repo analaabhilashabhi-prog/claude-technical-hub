@@ -74,6 +74,14 @@ export const listColleges = (params = {}) => json(`/colleges${qs(params)}`)
 // Has this email/mobile already registered for the webinar? (pre-submit warning)
 export const checkRegistration = (params = {}) => json(`/bookings/webinar/check${qs(params)}`)
 
-// Email OTP verification
+// Email OTP verification (PARKED on the form for now, kept for re-enabling)
 export const sendOtp = (email) => json('/otp/send', { method: 'POST', body: JSON.stringify({ email }) })
 export const verifyOtp = (email, otp) => json('/otp/verify', { method: 'POST', body: JSON.stringify({ email, otp }) })
+
+// Admin data cleanup — organization name merge (reversible)
+export const listOrgNames = () => json('/admin/org-names')
+export const mergeOrgs = (names, target) =>
+  json('/admin/merge-orgs', { method: 'POST', body: JSON.stringify({ names, target }) })
+export const listMergeLogs = () => json('/admin/merge-logs')
+export const undoMerge = (logId) =>
+  json('/admin/merge-orgs/undo', { method: 'POST', body: JSON.stringify({ logId }) })

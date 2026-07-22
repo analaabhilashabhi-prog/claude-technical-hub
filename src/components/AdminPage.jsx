@@ -5,7 +5,8 @@ import { listBookings, clearBookings, getAdminToken, clearAdminToken, savePopup 
 import { Calendar, Cube, Close, Check, Pencil, Bell } from './Icons'
 import { HeroHighlight } from './HeroHighlight'
 import AdminLogin from './AdminLogin'
-import Analytics from './Analytics'
+// PARKED (see commit e42ec41): Analytics dashboard — import Analytics from './Analytics'
+import DataCleanup from './DataCleanup'
 import logo from '../assets/darklogo.png'
 
 const TABS = [
@@ -215,7 +216,8 @@ export default function AdminPage() {
           {[
             ['bookings', 'Bookings'],
             ['library', 'Webinar Library'],
-            ['analytics', 'Analytics'],
+            ['cleanup', 'Data Cleanup'],
+            // PARKED (see commit e42ec41): ['analytics', 'Analytics'],
           ].map(([k, label]) => (
             <button
               key={k}
@@ -231,8 +233,8 @@ export default function AdminPage() {
 
         {section === 'library' ? (
           <LibraryManager />
-        ) : section === 'analytics' ? (
-          <Analytics rows={data.webinar} />
+        ) : section === 'cleanup' ? (
+          <DataCleanup />
         ) : (
           <>
         <h1 className="text-2xl font-bold text-white">Bookings Dashboard</h1>

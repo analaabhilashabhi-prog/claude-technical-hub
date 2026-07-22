@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { getWebinars } from '../data/webinarStore'
-import { createBooking, listColleges, checkRegistration, sendOtp, verifyOtp } from '../data/api'
+import { createBooking, listColleges, checkRegistration } from '../data/api'
+// PARKED (see commit e42ec41): OTP helpers — import { sendOtp, verifyOtp } from '../data/api'
 import { bookingForms, emptyFormFor, validateForm } from '../data/bookingForms'
-import { INDIAN_STATES, COURSES } from '../data/formOptions'
-import { STATE_CITIES } from '../data/indiaCities'
+// PARKED (see commit e42ec41): State/City/Course option lists
+// import { INDIAN_STATES, COURSES } from '../data/formOptions'
+// import { STATE_CITIES } from '../data/indiaCities'
 import { buildEvent, googleUrl, downloadICS } from '../data/calendar'
 import { Arrow, Check, Close, Calendar } from './Icons'
 import { useOutsideClick } from '../hooks/useOutsideClick'
@@ -97,68 +99,8 @@ function RegisterForm({ w, onDone }) {
   const [loading, setLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
 
-  // Email OTP verification
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpInput, setOtpInput] = useState('')
-  const [otpMsg, setOtpMsg] = useState('')
-  const [otpErr, setOtpErr] = useState('')
-  const [otpPreview, setOtpPreview] = useState('')
-  const [emailVerified, setEmailVerified] = useState(false)
-  const [sendingOtp, setSendingOtp] = useState(false)
-  const [verifyingOtp, setVerifyingOtp] = useState(false)
-
   const set = (name, val) => setForm((f) => ({ ...f, [name]: val }))
-
-  // Any change to the email invalidates a prior verification.
-  const setEmail = (val) => {
-    set('email', val)
-    setEmailVerified(false)
-    setOtpSent(false)
-    setOtpInput('')
-    setOtpMsg('')
-    setOtpErr('')
-    setOtpPreview('')
-  }
-
-  const emailLooksValid = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(form.email.trim())
-
-  const doSendOtp = async () => {
-    if (!emailLooksValid) {
-      setErrors((e) => ({ ...e, email: 'Valid email required' }))
-      return
-    }
-    setSendingOtp(true)
-    setOtpErr('')
-    try {
-      const r = await sendOtp(form.email.trim())
-      setOtpSent(true)
-      setOtpMsg('We emailed you a 6-digit code.')
-      setOtpPreview(r?.preview || '')
-    } catch (err) {
-      setOtpErr(err.message || 'Could not send the code.')
-    } finally {
-      setSendingOtp(false)
-    }
-  }
-
-  const doVerifyOtp = async () => {
-    setVerifyingOtp(true)
-    setOtpErr('')
-    try {
-      await verifyOtp(form.email.trim(), otpInput.trim())
-      setEmailVerified(true)
-      setOtpMsg('Email verified ✓')
-    } catch (err) {
-      setOtpErr(err.message || 'Incorrect code.')
-    } finally {
-      setVerifyingOtp(false)
-    }
-  }
-
-  // Changing state clears the downstream city/college.
-  useEffect(() => {
-    setForm((f) => ({ ...f, city: '', college: '', collegeId: '' }))
-  }, [form.state])
+  // PARKED (see commit e42ec41): email OTP verification — send code / verify / gate submit.
 
   // Debounced college suggestions from names already in the database (skipped
   // once a suggestion is picked).
@@ -201,10 +143,7 @@ function RegisterForm({ w, onDone }) {
     if (!f.firstName.trim()) e.firstName = 'Required'
     else if (!/^[A-Za-z][A-Za-z\s.'-]*$/.test(f.firstName.trim())) e.firstName = 'Letters only'
     if (f.lastName.trim() && !/^[A-Za-z\s.'-]+$/.test(f.lastName.trim())) e.lastName = 'Letters only'
-    if (!f.state) e.state = 'Select your state'
-    if (!f.city.trim()) e.city = 'Select your city'
     if (!f.college.trim()) e.college = 'Select your college'
-    if (!f.course) e.course = 'Select your course'
     if (!/^[6-9]\d{9}$/.test(f.mobile.replace(/\D/g, '').slice(-10))) e.mobile = 'Valid 10-digit mobile (6–9)'
     if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(f.email.trim())) e.email = 'Valid email required'
     return e
@@ -215,18 +154,11 @@ function RegisterForm({ w, onDone }) {
     const errs = validate(form)
     setErrors(errs)
     if (Object.keys(errs).length) return
-    if (!emailVerified) {
-      setSaveError('Please verify your email with the code we sent before registering.')
-      return
-    }
     const record = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       email: form.email.trim().toLowerCase(),
       mobile: form.mobile.replace(/\D/g, '').slice(-10),
-      state: form.state,
-      city: form.city.trim(),
-      course: form.course,
       college: form.college.trim(),
       webinar: w.title,
       webinarId: w.id,
@@ -257,9 +189,6 @@ function RegisterForm({ w, onDone }) {
       if (err.status === 409) {
         setSaveError(err.message)
         if (err.body?.field) setDup((d) => ({ ...d, [err.body.field]: true }))
-      } else if (err.status === 403) {
-        setSaveError(err.message)
-        setEmailVerified(false)
       } else if (err.status === 400 && err.body?.fields) {
         setErrors(err.body.fields)
         setSaveError('Please fix the highlighted fields.')
@@ -350,25 +279,7 @@ function RegisterForm({ w, onDone }) {
           <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} placeholder="Doe" className={inputCls(errors.lastName)} />
         </RField>
 
-        <RField label="State" bad={errors.state}>
-          <SearchSelect
-            value={form.state}
-            onChange={(v) => set('state', v)}
-            options={INDIAN_STATES}
-            placeholder="Search state…"
-            error={errors.state}
-          />
-        </RField>
-        <RField label="City" bad={errors.city}>
-          <SearchSelect
-            value={form.city}
-            onChange={(v) => set('city', v)}
-            options={STATE_CITIES[form.state] || []}
-            placeholder={form.state ? 'Search city…' : 'Select a state first'}
-            disabled={!form.state}
-            error={errors.city}
-          />
-        </RField>
+        {/* PARKED (see commit e42ec41): State + City searchable dropdowns */}
 
         <div className="relative sm:col-span-2">
           <RField label="College / Organization" bad={errors.college}>
@@ -381,8 +292,7 @@ function RegisterForm({ w, onDone }) {
               }}
               onFocus={() => setSugOpen(true)}
               onBlur={() => setTimeout(() => setSugOpen(false), 150)}
-              placeholder={form.state ? 'Start typing your college…' : 'Select a state first'}
-              disabled={!form.state}
+              placeholder="Start typing your college…"
               className={inputCls(errors.college)}
             />
           </RField>
@@ -409,15 +319,7 @@ function RegisterForm({ w, onDone }) {
           )}
         </div>
 
-        <RField label="Course / Program" bad={errors.course}>
-          <SearchSelect
-            value={form.course}
-            onChange={(v) => set('course', v)}
-            options={COURSES}
-            placeholder="Search course…"
-            error={errors.course}
-          />
-        </RField>
+        {/* PARKED (see commit e42ec41): Course / Program dropdown */}
         <RField label="Mobile" bad={errors.mobile}>
           <input
             value={form.mobile}
@@ -433,71 +335,24 @@ function RegisterForm({ w, onDone }) {
         </RField>
 
         <RField label="Email" bad={errors.email} full>
-          <div className="flex gap-2">
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={checkDup}
-              placeholder="jane@college.edu"
-              className={`${inputCls(errors.email)} flex-1`}
-            />
-            {emailVerified ? (
-              <span className="flex shrink-0 items-center gap-1 rounded-xl bg-brand-500/10 px-3 text-xs font-semibold text-brand-300 ring-1 ring-brand-500/20">
-                Verified ✓
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={doSendOtp}
-                disabled={sendingOtp || !emailLooksValid}
-                className="shrink-0 rounded-xl border border-white/15 px-4 text-sm font-semibold text-white/80 transition hover:bg-white/5 disabled:opacity-40"
-              >
-                {sendingOtp ? 'Sending…' : otpSent ? 'Resend' : 'Send code'}
-              </button>
-            )}
-          </div>
-
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => set('email', e.target.value)}
+            onBlur={checkDup}
+            placeholder="jane@college.edu"
+            className={inputCls(errors.email)}
+          />
           {dup.email && !errors.email && (
             <p className="mt-1 text-xs text-amber-400">This email is already registered for this webinar.</p>
           )}
-
-          {otpSent && !emailVerified && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <input
-                value={otpInput}
-                onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="6-digit code"
-                inputMode="numeric"
-                className={`${inputCls(false)} w-40`}
-              />
-              <button
-                type="button"
-                onClick={doVerifyOtp}
-                disabled={verifyingOtp || otpInput.trim().length < 4}
-                className="rounded-xl bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-40"
-              >
-                {verifyingOtp ? 'Verifying…' : 'Verify'}
-              </button>
-            </div>
-          )}
-
-          {otpMsg && <p className={`mt-1 text-xs ${emailVerified ? 'text-brand-300' : 'text-white/50'}`}>{otpMsg}</p>}
-          {otpErr && <p className="mt-1 text-xs text-red-400">{otpErr}</p>}
-          {otpPreview && (
-            <a href={otpPreview} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-claude-300 underline">
-              Open the test email to see your code →
-            </a>
-          )}
+          {/* PARKED (see commit e42ec41): email OTP verify — send code / enter code / verified */}
         </RField>
 
         {saveError && <p className="text-sm text-red-400 sm:col-span-2">{saveError}</p>}
-        {!emailVerified && (
-          <p className="text-xs text-white/40 sm:col-span-2">Verify your email above to enable registration.</p>
-        )}
         <button
           type="submit"
-          disabled={loading || !emailVerified}
+          disabled={loading}
           className="mt-1 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-60 sm:col-span-2"
         >
           Confirm Registration

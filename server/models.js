@@ -48,8 +48,23 @@ bookingSchema.index(
   { unique: true, partialFilterExpression: { type: 'webinar', webinarId: { $type: 'string' }, mobileNorm: { $type: 'string' } } }
 )
 
+// Audit trail for admin organization-name merges, so any merge is reversible.
+// `changes` stores each affected booking's original name → one-click undo.
+const mergeLogSchema = new mongoose.Schema(
+  {
+    field: { type: String, default: 'Organization-College Name' },
+    to: String, // the final canonical name
+    from: [String], // the variant names that were merged in
+    count: Number, // records affected
+    changes: [{ id: String, from: String }], // per-record original, for undo
+    undone: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+)
+
 export const Webinar = mongoose.model('Webinar', webinarSchema)
 export const Booking = mongoose.model('Booking', bookingSchema)
+export const MergeLog = mongoose.model('MergeLog', mergeLogSchema)
 
 // The admin account for the dashboard login. Password is never stored in
 // plain text — only a bcrypt hash. Created/updated via server/seed-admin.js.
