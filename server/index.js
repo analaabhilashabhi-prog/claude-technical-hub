@@ -10,11 +10,26 @@ import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import { Webinar, Booking } from './models.js'
-import { sendWebinarConfirmation } from './mailer.js'
+import { sendOtpEmail, sendWebinarConfirmation } from './mailer.js'
 import { login, requireAuth } from './auth.js'
 import { canonicalEmail, normalizeMobile, cleanText, isValidEmail, isValidMobile } from './normalize.js'
 
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// ---- Email OTP verification (in-memory; fine for a single server, resets on
+// restart). Keyed by canonical email. Registration requires a recently-verified
+// OTP for the submitted email.
+const otpStore = new Map()
+const OTP_TTL_MS = 10 * 60 * 1000 // code valid for 10 min
+const OTP_RESEND_MS = 30 * 1000 // min gap between sends
+const OTP_VERIFY_WINDOW_MS = 20 * 60 * 1000 // how long a verification stays valid
+const OTP_MAX_ATTEMPTS = 6
+const makeOtp = () => String(Math.floor(100000 + Math.random() * 900000))
+// occasional cleanup so the map doesn't grow unbounded
+setInterval(() => {
+  const now = Date.now()
+  for (const [k, v] of otpStore) if (v.expiresAt < now && v.verifiedUntil < now) otpStore.delete(k)
+}, 10 * 60 * 1000).unref?.()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const distDir = path.join(__dirname, '..', 'dist')
@@ -103,6 +118,50 @@ app.get('/api/popups', async (_req, res, next) => {
   } catch (e) {
     next(e)
   }
+})
+
+/* ---------------- Email OTP ---------------- */
+// Public: send a verification code to the given email.
+app.post('/api/otp/send', async (req, res, next) => {
+  try {
+    const emailRaw = String(req.body?.email ?? '').trim()
+    if (!isValidEmail(emailRaw)) return res.status(400).json({ error: 'Enter a valid email first.' })
+    const key = canonicalEmail(emailRaw)
+    const now = Date.now()
+    const existing = otpStore.get(key)
+    if (existing && now - existing.lastSentAt < OTP_RESEND_MS) {
+      const wait = Math.ceil((OTP_RESEND_MS - (now - existing.lastSentAt)) / 1000)
+      return res.status(429).json({ error: `Please wait ${wait}s before requesting another code.` })
+    }
+    const code = makeOtp()
+    otpStore.set(key, { code, expiresAt: now + OTP_TTL_MS, attempts: 0, verifiedUntil: 0, lastSentAt: now })
+    let preview = null
+    try {
+      const r = await sendOtpEmail(emailRaw, code)
+      preview = r?.preview || null
+    } catch (err) {
+      console.error('[otp] send failed →', err.message)
+      return res.status(502).json({ error: 'Could not send the code right now. Please try again.' })
+    }
+    res.json({ ok: true, preview })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Public: verify the code. On success the email is marked verified for a window.
+app.post('/api/otp/verify', (req, res) => {
+  const emailRaw = String(req.body?.email ?? '').trim()
+  const otp = String(req.body?.otp ?? '').trim()
+  const key = canonicalEmail(emailRaw)
+  const rec = otpStore.get(key)
+  const now = Date.now()
+  if (!rec || rec.expiresAt < now) return res.status(400).json({ error: 'Code expired — request a new one.' })
+  if (rec.attempts >= OTP_MAX_ATTEMPTS) return res.status(429).json({ error: 'Too many attempts — request a new code.' })
+  rec.attempts += 1
+  if (otp !== rec.code) return res.status(400).json({ error: 'Incorrect code. Please try again.' })
+  rec.verifiedUntil = now + OTP_VERIFY_WINDOW_MS
+  res.json({ ok: true })
 })
 
 /* ---------------- College suggestions ---------------- */
@@ -204,6 +263,12 @@ async function registerWebinar(data, submittedAt, res) {
     return res.status(400).json({ error: 'Please check the highlighted fields.', fields })
   }
 
+  // require a recently-verified OTP for this email (server-enforced, not bypassable)
+  const otpRec = otpStore.get(emailNorm)
+  if (!otpRec || otpRec.verifiedUntil < Date.now()) {
+    return res.status(403).json({ error: 'Please verify your email with the code we sent.', field: 'email' })
+  }
+
   // duplicate guard: same email OR mobile already registered for THIS webinar
   const clash = await Booking.findOne({ type: 'webinar', webinarId, $or: [{ emailNorm }, { mobileNorm }] }).lean()
   if (clash) {
@@ -235,6 +300,9 @@ async function registerWebinar(data, submittedAt, res) {
     throw e
   }
 
+  otpStore.delete(emailNorm) // one-time use — code can't be reused
+  // Fire-and-forget the branded welcome email (don't block the response on it).
+  sendWebinarConfirmation(record).catch((err) => console.error('[mailer] welcome failed →', err.message))
   res.status(201).json({ ok: true })
 }
 // Admin-only: wiping booking records.

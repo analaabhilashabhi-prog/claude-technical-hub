@@ -15,14 +15,8 @@ const pub = (...p) => path.resolve(__dirname, '..', 'public', ...p)
 // email clients strip <svg> AND data: URIs, so logos + line icons are all PNGs.
 // Keys are the cids referenced by emailHtml's defaults.
 const ASSET_FILES = {
-  claudemark: pub('claude-mark.png'),                         // Claude starburst
+  claudemark: pub('claude-mark.png'), // Claude starburst
   thmark: path.resolve(__dirname, '..', 'src', 'assets', 'darklogo.png'), // full TH logo
-  iccal: pub('mail', 'calendar.png'),      // When   (TH lime)
-  icclock: pub('mail', 'clock.png'),       // Duration (TH lime)
-  icmic: pub('mail', 'mic.png'),           // Hosted by (TH lime)
-  iclink: pub('mail', 'link.png'),         // Join link (TH lime)
-  iccheck: pub('mail', 'check.png'),       // perks (Claude orange)
-  iccalw: pub('mail', 'calendar-white.png'), // button (white)
 }
 
 const {
@@ -34,21 +28,82 @@ const {
   SMTP_BCC,
 } = process.env
 
-let transport = null
-function getTransport() {
-  if (transport) return transport
-  if (!SMTP_USER || !SMTP_PASS) return null
-  transport = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: Number(SMTP_PORT) === 465, // 587 = STARTTLS
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  })
-  return transport
+let transportPromise = null
+let mailFrom = null
+let ethereal = false
+
+// Resolve a transport once. Real SMTP if SMTP_USER/PASS are set; otherwise fall
+// back to a free Ethereal test inbox so email works in dev with zero setup —
+// nothing is delivered to real inboxes, but each send returns a preview URL.
+async function getTransport() {
+  if (transportPromise) return transportPromise
+  transportPromise = (async () => {
+    if (SMTP_USER && SMTP_PASS) {
+      mailFrom = `"${SMTP_FROM_NAME}" <${SMTP_USER}>`
+      return nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: Number(SMTP_PORT),
+        secure: Number(SMTP_PORT) === 465, // 587 = STARTTLS
+        auth: { user: SMTP_USER, pass: SMTP_PASS },
+      })
+    }
+    ethereal = true
+    const acc = await nodemailer.createTestAccount()
+    mailFrom = `"${SMTP_FROM_NAME}" <${acc.user}>`
+    console.log('[mailer] No SMTP creds set — using an Ethereal TEST inbox. Emails are NOT delivered to real addresses; open the preview URLs logged on each send.')
+    return nodemailer.createTransport({
+      host: acc.smtp.host,
+      port: acc.smtp.port,
+      secure: acc.smtp.secure,
+      auth: { user: acc.user, pass: acc.pass },
+    })
+  })()
+  return transportPromise
 }
 
+export const isEthereal = () => ethereal
 export function mailerReady() {
-  return Boolean(SMTP_USER && SMTP_PASS)
+  return true // always — real SMTP if configured, else an Ethereal test inbox
+}
+
+// Minimal branded OTP email.
+function otpHtml(code) {
+  return `<!doctype html><html><head><meta charset="utf-8"></head>
+  <body style="margin:0;background:#0a0a0a;font-family:'Segoe UI',Arial,sans-serif;">
+    <div style="max-width:460px;margin:0 auto;padding:32px 24px;">
+      <div style="background:#141414;border:1px solid #262626;border-radius:18px;overflow:hidden;">
+        <div style="height:4px;background:linear-gradient(90deg,#008737,#7cc243,#f5b301,#d97757);"></div>
+        <div style="padding:28px 30px 32px;color:#e5e5e5;">
+          <div style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#fff;">Technical Hub</div>
+          <p style="font-size:20px;margin:20px 0 8px;color:#fff;font-weight:800;">Verify your email</p>
+          <p style="margin:0 0 22px;color:#b0b0b0;font-size:14px;line-height:1.6;">
+            Enter this code to confirm your email and complete your webinar registration:
+          </p>
+          <div style="background:#0f0f0f;border:1px solid #272727;border-radius:12px;text-align:center;padding:18px 0;">
+            <span style="font-size:34px;font-weight:800;letter-spacing:10px;color:#7cc243;">${esc(code)}</span>
+          </div>
+          <p style="margin:20px 0 0;color:#7a7a7a;font-size:12.5px;line-height:1.6;">
+            This code expires in 10 minutes. If you didn't request it, you can ignore this email.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body></html>`
+}
+
+// Sends a 6-digit verification code. Returns { preview } (an Ethereal URL in
+// test mode, null with real SMTP).
+export async function sendOtpEmail(to, code) {
+  const tx = await getTransport()
+  const info = await tx.sendMail({
+    from: mailFrom,
+    to,
+    subject: `Your Technical Hub verification code: ${code}`,
+    html: otpHtml(code),
+  })
+  const preview = ethereal ? nodemailer.getTestMessageUrl(info) : null
+  if (preview) console.log(`[mailer] OTP for ${to} → ${code}   preview: ${preview}`)
+  return { preview }
 }
 
 const esc = (s) =>
@@ -139,135 +194,72 @@ export function emailHtml({ booking, event, gcalUrl, outUrl, assets = {} }) {
     ? `<a href="${esc(event.joinUrl)}" style="color:${C.thLime};text-decoration:none;">${esc(event.joinUrl)}</a>`
     : `<span style="color:#8f8f8f;">Emailed before the session</span>`
 
-  // One divided row inside the details card — line icon + label, value on the right.
-  const detailRow = (iconSrc, label, value, last) => {
-    const edge = last ? '' : 'border-bottom:1px solid #242424;'
-    return `<tr>
-      <td style="padding:13px 0;${edge}vertical-align:middle;">
-        <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-          <td style="padding-right:10px;line-height:0;vertical-align:middle;">${icon(iconSrc)}</td>
-          <td style="vertical-align:middle;color:#8a8a8a;font-size:13px;white-space:nowrap;">${label}</td>
-        </tr></table>
-      </td>
-      <td style="padding:13px 0;${edge}color:#ededed;font-size:14px;font-weight:600;text-align:right;vertical-align:middle;">${value}</td>
+  // One clean label/value row in the details card — no icons, generous spacing.
+  const detailRow = (label, value, last) =>
+    `<tr>
+      <td style="padding:14px 0;${last ? '' : 'border-bottom:1px solid #202022;'}color:#86868c;font-size:13px;vertical-align:top;white-space:nowrap;">${label}</td>
+      <td style="padding:14px 0 14px 22px;${last ? '' : 'border-bottom:1px solid #202022;'}color:#f0f0f2;font-size:14px;font-weight:600;text-align:right;vertical-align:top;">${value}</td>
     </tr>`
-  }
 
   const rows = [
-    detailRow(A.cal, 'When', whenText, false),
-    durationText ? detailRow(A.clock, 'Duration', durationText, false) : '',
-    host ? detailRow(A.mic, 'Hosted by', host, false) : '',
-    detailRow(A.link, 'Join link', linkVal, true),
+    detailRow('When', whenText, false),
+    durationText ? detailRow('Duration', durationText, false) : '',
+    host ? detailRow('Host', host, false) : '',
+    detailRow('Join link', linkVal, true),
   ].join('')
 
-  const descBlock = booking.description
-    ? `<div style="margin-bottom:26px;">
-         <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8a8a8a;font-weight:700;margin-bottom:10px;">About this session</div>
-         <p style="margin:0;line-height:1.7;color:#b0b0b0;font-size:14px;">${esc(shortDesc(booking.description))}</p>
-       </div>`
+  // A single, quiet line about the session — kept short on purpose.
+  const aboutBlock = booking.description
+    ? `<p style="margin:26px 2px 0;line-height:1.75;color:#8f8f96;font-size:13.5px;">${esc(shortDesc(booking.description, 150))}</p>`
     : ''
 
-  // "Why join" — builds anticipation so registrants actually show up. Claude-orange accent.
-  const perk = (text) =>
-    `<tr>
-       <td style="vertical-align:top;padding:7px 12px 7px 0;line-height:0;">${icon(A.check, 16)}</td>
-       <td style="padding:6px 0;color:#cfcfcf;font-size:14px;line-height:1.55;">${text}</td>
-     </tr>`
-  const whyBlock = `
-          <div style="background:#0f0f0f;border:1px solid #272727;border-radius:14px;padding:20px 22px;">
-            <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:${C.claude};font-weight:700;margin-bottom:6px;">Why you'll want to be there</div>
-            <p style="margin:0 0 12px;color:#a5a5a5;font-size:13px;line-height:1.6;">
-              A live, hands-on session from the Technical&nbsp;Hub &times; Claude Partner Network — built to take you from curious to capable, whatever your starting point.
-            </p>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-              ${perk('<strong style="color:#e6e6e6;">Learn by doing</strong> — follow along live and ask your questions in real time.')}
-              ${perk('<strong style="color:#e6e6e6;">Led by Claude-certified architects</strong> who build with these tools every day.')}
-              ${perk('<strong style="color:#e6e6e6;">Beginner-friendly</strong> — no prior AI experience needed to keep up.')}
-            </table>
-          </div>`
-
-  // Session-info card (left column).
-  const infoCard = `
-          <div style="background:#0f0f0f;border:1px solid #272727;border-radius:14px;padding:6px 20px 10px;">
-            <div style="padding-top:14px;">
-              <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${C.thLime};font-weight:700;">Your Webinar</div>
-              <div style="font-size:19px;font-weight:700;color:#ffffff;line-height:1.25;margin-top:7px;">${esc(event.title)}</div>
-            </div>
-            <table width="100%" role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:4px;">
-              ${rows}
-            </table>
-          </div>`
-
-  // Calendar CTA (left column, under the info card).
-  const calBlock = `
-          <div style="margin-top:20px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8a8a8a;font-weight:700;margin-bottom:12px;">Save your seat to your calendar</div>
-          <a href="${gcalUrl}" target="_blank"
-             style="display:inline-block;background:linear-gradient(90deg,${C.thGreen},#1f9c5c);color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:999px;margin:0 8px 10px 0;">
-            <span style="display:inline-block;vertical-align:middle;margin-right:8px;line-height:0;">${icon(A.calw, 16)}</span><span style="vertical-align:middle;">Add to Google Calendar</span>
-          </a>
-          <a href="${outUrl}" target="_blank"
-             style="display:inline-block;background:#1f1f1f;border:1px solid #3a3a3a;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:999px;margin:0 0 10px 0;">
-            Add to Outlook
-          </a>
-          <p style="margin:10px 0 0;font-size:12.5px;color:#7a7a7a;line-height:1.6;">
-            On Apple Calendar or another app? Open the attached <strong style="color:#9a9a9a;">invite.ics</strong> to add it in one tap.
-          </p>`
-
   return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-  @media only screen and (max-width:620px){
-    .wrap{max-width:100% !important;}
-    .col{display:block !important;width:100% !important;padding:0 !important;box-sizing:border-box;}
-    .col-l{margin-bottom:22px !important;}
-  }
-</style></head>
-<body style="margin:0;background:#0a0a0a;font-family:'Segoe UI',Arial,sans-serif;color:#e5e5e5;">
-  <div class="wrap" style="max-width:860px;margin:0 auto;padding:30px 24px;">
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;background:#0a0a0b;font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#e6e6e6;">
+  <div style="max-width:560px;margin:0 auto;padding:44px 26px;">
 
     ${brandHeader({ claudeSrc: A.claude, thSrc: A.th })}
 
-    <div style="margin-top:16px;background:#141414;border:1px solid #262626;border-radius:18px;overflow:hidden;">
-      <!-- accent bar — full brand spectrum: TH green → lime → yellow → Claude orange -->
-      <div style="height:4px;background:linear-gradient(90deg,${C.thGreen},${C.thLime},${C.thYellow},${C.claude});"></div>
-      <div style="padding:28px 32px 30px;">
-        <span style="display:inline-block;background:#0e3b23;color:${C.thLime};font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:6px 13px;border-radius:999px;">You're registered</span>
-
-        <p style="font-size:23px;margin:18px 0 10px;color:#ffffff;font-weight:800;line-height:1.2;">Hey ${esc(booking.firstName) || 'there'}, you're in!</p>
-        <p style="margin:0 0 26px;line-height:1.6;color:#c4c4c4;font-size:14.5px;max-width:70ch;">
-          Your seat is officially locked in — and honestly, we're pretty pumped to have you. Expect a fun, hands-on session where curiosity is more than welcome and no question is too small. Grab a coffee, bring your ideas, and let's build something cool together. Here's everything you need to show up ready:
-        </p>
-
-        <!-- Two-column body: details/calendar on the left, about/why on the right -->
-        <table width="100%" role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-          <tr>
-            <td class="col col-l" width="47%" valign="top" style="vertical-align:top;padding-right:15px;">
-              ${infoCard}
-              ${calBlock}
-            </td>
-            <td class="col" width="53%" valign="top" style="vertical-align:top;padding-left:15px;">
-              ${descBlock}
-              ${whyBlock}
-            </td>
-          </tr>
-        </table>
-      </div>
+    <div style="margin-top:36px;">
+      <div style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:${C.thLime};font-weight:700;">You're registered</div>
+      <h1 style="margin:13px 0 0;font-size:27px;line-height:1.22;font-weight:800;color:#ffffff;">Hey ${esc(booking.firstName) || 'there'}, you're in.</h1>
+      <p style="margin:15px 0 0;font-size:15px;line-height:1.7;color:#a6a6ac;">
+        Your seat is confirmed. Here's everything you need — we'll see you there.
+      </p>
     </div>
 
-    <p style="margin:22px 4px 0;font-size:12px;color:#6a6a6a;line-height:1.6;">
-      See you there — the Technical Hub team &middot; Claude Partner Network
-    </p>
+    <div style="margin-top:32px;background:#141416;border:1px solid #232326;border-radius:16px;padding:26px 28px;">
+      <div style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#86868c;font-weight:700;">Your webinar</div>
+      <div style="margin-top:9px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">${esc(event.title)}</div>
+      <table width="100%" role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:16px;">
+        ${rows}
+      </table>
+    </div>
+
+    ${aboutBlock}
+
+    <div style="margin-top:30px;">
+      <a href="${gcalUrl}" target="_blank"
+         style="display:inline-block;background:${C.thGreen};color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:13px 30px;border-radius:999px;">
+        Add to Google Calendar
+      </a>
+      <p style="margin:15px 0 0;font-size:12.5px;color:#77777d;line-height:1.7;">
+        Prefer another app? <a href="${outUrl}" target="_blank" style="color:#9a9a9f;text-decoration:underline;">Add to Outlook</a> &middot; or open the attached <strong style="color:#9a9a9f;">invite.ics</strong>.
+      </p>
+    </div>
+
+    <div style="margin-top:38px;border-top:1px solid #1c1c1e;padding-top:18px;">
+      <p style="margin:0;font-size:12px;color:#6a6a70;line-height:1.6;">
+        See you there — the Technical Hub team &middot; Claude Partner Network
+      </p>
+    </div>
   </div>
 </body></html>`
 }
 
 // booking = the saved record (email, firstName, webinar, sessionDate, sessionDateISO, sessionTime, presenter, role, description, ...)
 export async function sendWebinarConfirmation(booking) {
-  const tx = getTransport()
-  if (!tx) {
-    console.log('[mailer] SMTP not configured — skipping confirmation email')
-    return
-  }
+  const tx = await getTransport()
   const to = booking.email
   if (!to) return
 
@@ -290,9 +282,8 @@ export async function sendWebinarConfirmation(booking) {
     }
   }
 
-  const from = `"${SMTP_FROM_NAME}" <${SMTP_USER}>`
-  await tx.sendMail({
-    from,
+  const info = await tx.sendMail({
+    from: mailFrom,
     to,
     bcc: SMTP_BCC || undefined,
     subject: `You're registered: ${event.title}`,
@@ -300,5 +291,6 @@ export async function sendWebinarConfirmation(booking) {
     attachments,
     icalEvent: { filename: 'invite.ics', method: 'PUBLISH', content: ics },
   })
-  console.log(`[mailer] confirmation sent → ${to}`)
+  const preview = ethereal ? nodemailer.getTestMessageUrl(info) : null
+  console.log(`[mailer] welcome email → ${to}${preview ? `   preview: ${preview}` : ''}`)
 }

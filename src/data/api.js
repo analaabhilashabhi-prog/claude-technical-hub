@@ -73,3 +73,7 @@ export const listColleges = (params = {}) => json(`/colleges${qs(params)}`)
 
 // Has this email/mobile already registered for the webinar? (pre-submit warning)
 export const checkRegistration = (params = {}) => json(`/bookings/webinar/check${qs(params)}`)
+
+// Email OTP verification
+export const sendOtp = (email) => json('/otp/send', { method: 'POST', body: JSON.stringify({ email }) })
+export const verifyOtp = (email, otp) => json('/otp/verify', { method: 'POST', body: JSON.stringify({ email, otp }) })
