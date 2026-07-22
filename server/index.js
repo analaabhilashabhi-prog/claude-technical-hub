@@ -10,13 +10,21 @@ import express from 'express'
 import cors from 'cors'
 import mongoose from 'mongoose'
 import { Webinar, Booking, MergeLog } from './models.js'
-// PARKED (kept for later): email features — sendOtpEmail, sendWebinarConfirmation.
-// Restore from git commit e42ec41 when re-enabling OTP + welcome email.
-// import { sendOtpEmail, sendWebinarConfirmation } from './mailer.js'
+// Welcome/confirmation email (sent AFTER a successful registration) — ACTIVE.
+// OTP verification (sendOtpEmail, the /api/otp/* routes, and the submit gate)
+// stays PARKED for now; restore from git commit e42ec41 when re-enabling it.
+import { sendWebinarConfirmation } from './mailer.js'
 import { login, requireAuth } from './auth.js'
 import { canonicalEmail, normalizeMobile, cleanText, isValidEmail, isValidMobile } from './normalize.js'
 
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// TESTING TOGGLE (off by default — safe for real use). Set
+// ALLOW_DUPLICATE_TESTING=true in .env to let the same email/mobile register for a
+// webinar repeatedly — handy for testing the welcome email without a fresh address
+// each time. It skips the app-level duplicate check AND omits the emailNorm/mobileNorm
+// keys so the DB's partial unique indexes don't block the repeat insert either.
+const ALLOW_DUPLICATE_TESTING = process.env.ALLOW_DUPLICATE_TESTING === 'true'
 
 // ---- Email OTP verification (in-memory; fine for a single server, resets on
 // restart). Keyed by canonical email. Registration requires a recently-verified
@@ -353,10 +361,12 @@ async function registerWebinar(data, submittedAt, res) {
   // }
 
   // duplicate guard: same email OR mobile already registered for THIS webinar
-  const clash = await Booking.findOne({ type: 'webinar', webinarId, $or: [{ emailNorm }, { mobileNorm }] }).lean()
-  if (clash) {
-    const which = clash.emailNorm === emailNorm ? 'email' : 'mobile'
-    return res.status(409).json({ error: `This ${which} is already registered for this webinar.`, field: which })
+  if (!ALLOW_DUPLICATE_TESTING) {
+    const clash = await Booking.findOne({ type: 'webinar', webinarId, $or: [{ emailNorm }, { mobileNorm }] }).lean()
+    if (clash) {
+      const which = clash.emailNorm === emailNorm ? 'email' : 'mobile'
+      return res.status(409).json({ error: `This ${which} is already registered for this webinar.`, field: which })
+    }
   }
 
   const record = {
@@ -374,7 +384,16 @@ async function registerWebinar(data, submittedAt, res) {
   }
 
   try {
-    await Booking.create({ type: 'webinar', data: record, submittedAt, webinarId, emailNorm, mobileNorm })
+    await Booking.create({
+      type: 'webinar',
+      data: record,
+      submittedAt,
+      webinarId,
+      // Omit the normalized dedup keys while duplicate-testing, so the partial
+      // unique indexes don't reject repeat test registrations.
+      emailNorm: ALLOW_DUPLICATE_TESTING ? undefined : emailNorm,
+      mobileNorm: ALLOW_DUPLICATE_TESTING ? undefined : mobileNorm,
+    })
   } catch (e) {
     // unique-index backstop for race conditions
     if (e && e.code === 11000) {
@@ -383,9 +402,12 @@ async function registerWebinar(data, submittedAt, res) {
     throw e
   }
 
-  // PARKED — one-time OTP consume + branded welcome email (re-enable with email features; commit e42ec41):
+  // Branded welcome/confirmation email — fire-and-forget so a mail hiccup never
+  // fails a registration (the student is already saved). In dev with no SMTP
+  // creds this sends via Ethereal and logs a preview URL to the server console.
+  sendWebinarConfirmation(record).catch((err) => console.error('[mailer] welcome failed →', err.message))
+  // PARKED — one-time OTP consume (re-enable with OTP verification; commit e42ec41):
   // otpStore.delete(emailNorm)
-  // sendWebinarConfirmation(record).catch((err) => console.error('[mailer] welcome failed →', err.message))
   res.status(201).json({ ok: true })
 }
 // Admin-only: wiping booking records.
