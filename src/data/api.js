@@ -2,11 +2,17 @@
 // server (see vite.config.js). Override with VITE_API_URL for a hosted backend.
 const BASE = import.meta.env.VITE_API_URL || '/api'
 
-// Admin session token, kept in localStorage so a refresh doesn't log you out.
-const TOKEN_KEY = 'th_admin_token'
-export const getAdminToken = () => localStorage.getItem(TOKEN_KEY)
-export const setAdminToken = (t) => localStorage.setItem(TOKEN_KEY, t)
-export const clearAdminToken = () => localStorage.removeItem(TOKEN_KEY)
+// Admin session token — kept in MEMORY ONLY (not localStorage/sessionStorage).
+// The session ends the moment the page unloads, so closing the tab, refreshing,
+// or navigating away all require a fresh login. This is intentional for admin.
+let adminToken = null
+export const getAdminToken = () => adminToken
+export const setAdminToken = (t) => {
+  adminToken = t
+}
+export const clearAdminToken = () => {
+  adminToken = null
+}
 
 async function json(path, opts = {}) {
   const token = getAdminToken()
@@ -57,6 +63,17 @@ export const savePopup = (id, popup) =>
     method: 'PUT',
     body: JSON.stringify(popup),
   })
+
+// Registration windows / seat caps
+// Admin: turn registration on/off, set the seat cap, the "close N hours before"
+// cutoff, and optional scheduled open/close times.
+export const saveRegistration = (id, cfg) =>
+  json(`/webinars/${encodeURIComponent(id)}/registration`, {
+    method: 'PUT',
+    body: JSON.stringify(cfg),
+  })
+// Public: fresh registration status + live seat count for one webinar.
+export const getRegistration = (id) => json(`/webinars/${encodeURIComponent(id)}/registration`)
 
 // Bookings (type = 'webinar' | 'aiLab')
 export const listBookings = (type) => json(`/bookings/${type}`)

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { bookingForms } from '../data/bookingForms'
-import { getWebinars, addWebinar, deleteWebinar, slugify } from '../data/webinarStore'
-import { listBookings, clearBookings, getAdminToken, clearAdminToken, savePopup } from '../data/api'
-import { Calendar, Cube, Close, Check, Pencil, Bell } from './Icons'
+import { getWebinars, addWebinar, deleteWebinar, slugify, sessionDateLabel } from '../data/webinarStore'
+import { listBookings, clearBookings, getAdminToken, clearAdminToken, savePopup, saveRegistration } from '../data/api'
+import { regConfig, DEFAULT_CAPACITY, DEFAULT_CLOSE_HOURS_BEFORE } from '../data/registration'
+import { Calendar, Cube, Close, Check, Pencil, Bell, Users } from './Icons'
 import { HeroHighlight } from './HeroHighlight'
 import AdminLogin from './AdminLogin'
 // PARKED (see commit e42ec41): Analytics dashboard — import Analytics from './Analytics'
@@ -54,6 +55,10 @@ const EXTRA_COLS = {
   webinar: [
     { key: 'webinar', label: 'Webinar' },
     { key: 'sessionDate', label: 'Session' },
+    { key: 'state', label: 'State' },
+    { key: 'city', label: 'City' },
+    { key: 'course', label: 'Course' },
+    { key: 'year', label: 'Year' },
   ],
   aiLab: [],
 }
@@ -63,7 +68,10 @@ const SLICERS = {
   webinar: [
     { key: 'webinar', label: 'Webinar' },
     { key: 'sessionDate', label: 'Session' },
-    { key: 'organization', label: 'Organization' },
+    { key: 'state', label: 'State' },
+    { key: 'city', label: 'City' },
+    { key: 'course', label: 'Course' },
+    { key: 'year', label: 'Year' },
   ],
   aiLab: [
     { key: 'orgType', label: 'Org type' },
@@ -78,6 +86,97 @@ function toCsv(cfg, rows, extra = []) {
   const lines = [headers.map(esc).join(',')]
   rows.forEach((r) => lines.push(cols.map((c) => esc(r[c])).join(',')))
   return lines.join('\r\n')
+}
+
+// ---- Dashboard insights: which fields to surface as KPI "unique" tiles and as
+// ranked breakdown bars, per booking type. Everything computes on the FILTERED set.
+const INSIGHTS = {
+  webinar: {
+    kpis: [
+      { label: 'Colleges', key: 'Organization-College Name' },
+      { label: 'States', key: 'state' },
+      { label: 'Cities', key: 'city' },
+      { label: 'Courses', key: 'course' },
+    ],
+    breakdowns: [
+      { label: 'By webinar', key: 'webinar' },
+      { label: 'By state', key: 'state' },
+      { label: 'By course', key: 'course' },
+      { label: 'By year of study', key: 'year' },
+      { label: 'Top colleges', key: 'Organization-College Name' },
+      { label: 'Top cities', key: 'city' },
+    ],
+  },
+  aiLab: {
+    kpis: [
+      { label: 'Organizations', key: 'organization' },
+      { label: 'Org types', key: 'orgType' },
+    ],
+    breakdowns: [
+      { label: 'By org type', key: 'orgType' },
+      { label: 'Top organizations', key: 'organization' },
+    ],
+  },
+}
+
+// A single KPI stat tile.
+function StatTile({ label, value, sub, accent }) {
+  const ring =
+    accent === 'brand' ? 'ring-brand-500/25 bg-brand-500/[0.07]' : 'ring-white/10 bg-white/[0.03]'
+  const val = accent === 'brand' ? 'text-brand-300' : 'text-white'
+  return (
+    <div className={`rounded-2xl p-4 ring-1 ${ring}`}>
+      <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-white/45">{label}</p>
+      <p className={`mt-1 text-2xl font-bold ${val}`}>{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-white/40">{sub}</p>}
+    </div>
+  )
+}
+
+// A clickable setting tile used in the Webinar Settings tab.
+function ActionTile({ icon: Icon, title, desc, onClick, danger }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition ${
+        danger
+          ? 'border-red-500/20 bg-red-500/[0.04] hover:border-red-500/40 hover:bg-red-500/[0.08]'
+          : 'border-white/10 bg-white/[0.03] hover:border-brand-400/40 hover:bg-white/[0.06]'
+      }`}
+    >
+      <span
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ring-1 ${
+          danger ? 'bg-red-500/15 text-red-300 ring-red-500/25' : 'bg-brand-500/10 text-brand-300 ring-brand-500/20'
+        }`}
+      >
+        <Icon width={18} height={18} />
+      </span>
+      <span>
+        <span className="block text-sm font-bold text-white">{title}</span>
+        <span className="mt-0.5 block text-xs text-white/45">{desc}</span>
+      </span>
+    </button>
+  )
+}
+
+// Horizontal ranked bars (single hue = magnitude). Recessive track, rounded ends.
+function BarList({ data, empty = 'No data' }) {
+  if (!data.length) return <p className="py-6 text-center text-sm text-white/30">{empty}</p>
+  const top = Math.max(...data.map((d) => d.value), 1)
+  return (
+    <div className="space-y-2">
+      {data.map((d) => (
+        <div key={d.label} className="flex items-center gap-3" title={`${d.label}: ${d.value}`}>
+          <div className="w-32 shrink-0 truncate text-xs text-white/70">{d.label}</div>
+          <div className="relative h-4 flex-1 overflow-hidden rounded bg-white/[0.05]">
+            <div className="h-full rounded bg-brand-500/70" style={{ width: `${(d.value / top) * 100}%` }} />
+          </div>
+          <div className="w-8 shrink-0 text-right text-xs font-semibold text-white/80">{d.value}</div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export default function AdminPage() {
@@ -111,6 +210,14 @@ export default function AdminPage() {
     if (authed) refresh()
   }, [authed])
 
+  // Reset slicers/search when switching between booking types. MUST stay above the
+  // `if (!authed)` early return — a hook after a conditional return changes the
+  // hook count between renders and crashes React (the "black screen" bug).
+  useEffect(() => {
+    setFilters({})
+    setSearch('')
+  }, [active])
+
   if (!authed) {
     return (
       <AdminLogin
@@ -122,12 +229,6 @@ export default function AdminPage() {
       />
     )
   }
-
-  // Reset slicers/search when switching between booking types.
-  useEffect(() => {
-    setFilters({})
-    setSearch('')
-  }, [active])
 
   const cfg = bookingForms[active]
   const rows = data[active]
@@ -160,6 +261,22 @@ export default function AdminPage() {
   const clearFilters = () => {
     setFilters({})
     setSearch('')
+  }
+
+  // ---- Insights, computed on the filtered rows ----
+  const ins = INSIGHTS[active] || { kpis: [], breakdowns: [] }
+  const uniqCount = (key) =>
+    new Set(filtered.map((r) => String(r[key] ?? '').trim()).filter(Boolean)).size
+  const rankBy = (key, n = 8) => {
+    const m = {}
+    filtered.forEach((r) => {
+      const v = String(r[key] ?? '').trim()
+      if (v) m[v] = (m[v] || 0) + 1
+    })
+    return Object.entries(m)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, n)
   }
 
   const exportCsv = () => {
@@ -216,6 +333,7 @@ export default function AdminPage() {
           {[
             ['bookings', 'Bookings'],
             ['library', 'Webinar Library'],
+            ['settings', 'Webinar Settings'],
             ['cleanup', 'Data Cleanup'],
             // PARKED (see commit e42ec41): ['analytics', 'Analytics'],
           ].map(([k, label]) => (
@@ -232,7 +350,9 @@ export default function AdminPage() {
         </div>
 
         {section === 'library' ? (
-          <LibraryManager />
+          <LibraryManager mode="library" />
+        ) : section === 'settings' ? (
+          <LibraryManager mode="settings" />
         ) : section === 'cleanup' ? (
           <DataCleanup />
         ) : (
@@ -355,6 +475,38 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Key insights — reflect the current filters */}
+        {rows.length > 0 && (
+          <>
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <StatTile
+                label="Registrations"
+                value={filtered.length}
+                sub={hasFilters ? `of ${rows.length} total` : 'total'}
+                accent="brand"
+              />
+              {ins.kpis.map((k) => (
+                <StatTile key={k.label} label={k.label} value={uniqCount(k.key)} />
+              ))}
+            </div>
+
+            {filtered.length > 0 && ins.breakdowns.length > 0 && (
+              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                {ins.breakdowns.map((b) => {
+                  const d = rankBy(b.key)
+                  if (!d.length) return null
+                  return (
+                    <div key={b.label} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">{b.label}</p>
+                      <BarList data={d} />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
+
         {/* Table */}
         <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02]">
           {rows.length === 0 ? (
@@ -433,6 +585,9 @@ const emptySession = {
   role: '',
   date: '',
   dateISO: '',
+  multiDay: false,
+  endDate: '',
+  endDateISO: '',
   startH: '5',
   startM: '00',
   ampm: 'PM',
@@ -558,7 +713,7 @@ function MiniCalendar({ sessions, value, onSelect }) {
   )
 }
 
-function LibraryManager() {
+function LibraryManager({ mode = 'library' }) {
   const [list, setList] = useState([])
   const [form, setForm] = useState(emptySession)
   const [error, setError] = useState('')
@@ -568,11 +723,18 @@ function LibraryManager() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [popupFor, setPopupFor] = useState(null) // webinar whose popup is being configured
+  const [regFor, setRegFor] = useState(null) // webinar whose registration is being configured
+  const [selectedId, setSelectedId] = useState('') // Webinar Settings tab: chosen webinar
   const fileRef = useRef(null)
+  const selected = list.find((w) => w.id === selectedId) || null
 
   // Reflect a saved popup config back into the local list without a full reload.
   const onPopupSaved = (id, popup) =>
     setList((l) => l.map((w) => (w.id === id ? { ...w, popup } : w)))
+
+  // Reflect a saved registration config back into the local list.
+  const onRegSaved = (id, registration) =>
+    setList((l) => l.map((w) => (w.id === id ? { ...w, registration } : w)))
 
   useEffect(() => {
     let alive = true
@@ -583,7 +745,25 @@ function LibraryManager() {
   }, [])
 
   const set = (name, val) => setForm((f) => ({ ...f, [name]: val }))
-  const setDate = (iso) => setForm((f) => ({ ...f, dateISO: iso, date: formatDisplay(iso) }))
+  const setDate = (iso) =>
+    setForm((f) => {
+      const next = { ...f, dateISO: iso, date: formatDisplay(iso) }
+      // Keep the end date valid: never before the start.
+      if (next.endDateISO && next.endDateISO < iso) {
+        next.endDateISO = iso
+        next.endDate = formatDisplay(iso)
+      }
+      return next
+    })
+  const setEndDate = (iso) => setForm((f) => ({ ...f, endDateISO: iso, endDate: formatDisplay(iso) }))
+  // Single-day ⇄ multi-day. Turning multi-day on seeds the end date from the start.
+  const setMultiDay = (on) =>
+    setForm((f) => ({
+      ...f,
+      multiDay: on,
+      endDateISO: on ? f.endDateISO || f.dateISO : '',
+      endDate: on ? f.endDate || f.date : '',
+    }))
   // Update a time part and recompute the display string.
   const setTimePart = (part, val) =>
     setForm((f) => {
@@ -612,11 +792,16 @@ function LibraryManager() {
     setEditingId(w.id)
     setError('')
     const dateISO = w.dateISO || toISOFromDisplay(w.date)
+    const endDateISO = w.endDateISO || ''
+    const multiDay = Boolean(endDateISO && endDateISO !== dateISO)
     setForm({
       ...emptySession,
       ...w,
       dateISO,
       date: w.date || formatDisplay(dateISO),
+      multiDay,
+      endDateISO: multiDay ? endDateISO : '',
+      endDate: multiDay ? w.endDate || formatDisplay(endDateISO) : '',
       ...parseTimeStr(w.time),
     })
     if (fileRef.current) fileRef.current.value = ''
@@ -631,8 +816,26 @@ function LibraryManager() {
       setError('Title, presenter, date and description are required.')
       return
     }
+    if (form.multiDay) {
+      if (!form.endDateISO) {
+        setError('Pick an end date, or switch back to a single-day session.')
+        return
+      }
+      if (form.endDateISO < form.dateISO) {
+        setError('The end date can’t be before the start date.')
+        return
+      }
+    }
     setError('')
-    const session = { ...form, id: editingId || `${slugify(form.title)}-${Date.now().toString(36)}` }
+    // Normalize: a single-day session stores no end date.
+    const multiDay = Boolean(form.multiDay && form.endDateISO && form.endDateISO !== form.dateISO)
+    const session = {
+      ...form,
+      multiDay,
+      endDateISO: multiDay ? form.endDateISO : '',
+      endDate: multiDay ? form.endDate : '',
+      id: editingId || `${slugify(form.title)}-${Date.now().toString(36)}`,
+    }
     setSaving(true)
     try {
       const next = await addWebinar(session)
@@ -652,6 +855,7 @@ function LibraryManager() {
     if (!window.confirm('Remove this session from the library?')) return
     try {
       setList(await deleteWebinar(id))
+      setSelectedId((s) => (s === id ? '' : s))
     } catch (err) {
       console.error('[admin] delete failed →', err)
     }
@@ -685,6 +889,91 @@ function LibraryManager() {
 
   return (
     <>
+      {mode === 'settings' ? (
+        <HeroHighlight containerClassName="rounded-3xl border border-white/10 bg-black/40 p-5 sm:p-8" radius={200}>
+          {/* ---- Webinar Settings: pick a webinar, then open a setting ---- */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Webinar Settings</h1>
+              <p className="mt-1 text-sm text-white/50">Pick a webinar, then open the setting you want to change.</p>
+            </div>
+            <button
+              onClick={() => openCreate()}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-5 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5"
+            >
+              <span className="text-lg leading-none">+</span> Create a session
+            </button>
+          </div>
+
+          {saved && (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-500/15 px-4 py-2 text-sm font-semibold text-brand-300 ring-1 ring-brand-500/30">
+              <Check className="h-4 w-4" /> Session {saved === 'updated' ? 'updated' : 'created'}!
+            </div>
+          )}
+
+          <div className="mt-6 max-w-lg">
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">Select a webinar</label>
+            <select
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              className={`${input} appearance-none`}
+            >
+              <option value="" className="text-black">— Choose a webinar —</option>
+              {list.map((w) => (
+                <option key={w.id} value={w.id} className="text-black">
+                  {w.title} · {sessionDateLabel(w)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {!selected ? (
+            <p className="mt-6 rounded-2xl border border-white/10 bg-white/[0.02] py-12 text-center text-sm text-white/40">
+              Select a webinar above to manage its settings.
+            </p>
+          ) : (
+            <div className="mt-6">
+              {/* current-state summary */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span
+                  className={`rounded-full px-3 py-1 font-semibold ring-1 ${
+                    regConfig(selected).enabled
+                      ? 'bg-brand-500/10 text-brand-300 ring-brand-500/25'
+                      : 'bg-red-500/10 text-red-300 ring-red-500/25'
+                  }`}
+                >
+                  Registration: {regConfig(selected).enabled ? 'Open' : 'Closed'}
+                </span>
+                <span className="rounded-full bg-white/[0.05] px-3 py-1 text-white/70 ring-1 ring-white/10">
+                  Seat cap {regConfig(selected).capacity}
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1 ring-1 ${
+                    selected.popup?.active
+                      ? 'bg-claude-500/10 text-claude-300 ring-claude-500/25'
+                      : 'bg-white/[0.05] text-white/60 ring-white/10'
+                  }`}
+                >
+                  Popup: {selected.popup?.active ? 'On' : 'Off'}
+                </span>
+                {!selected.link && (
+                  <span className="rounded-full bg-amber-500/10 px-3 py-1 text-amber-300 ring-1 ring-amber-500/25">
+                    No join link
+                  </span>
+                )}
+              </div>
+
+              {/* settings for the selected webinar */}
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <ActionTile icon={Users} title="Registration" desc="Open/close, seat cap, 24h cutoff, schedule" onClick={() => setRegFor(selected)} />
+                <ActionTile icon={Bell} title="Popup notification" desc="Live join-link popup on the site" onClick={() => setPopupFor(selected)} />
+                <ActionTile icon={Pencil} title="Edit details" desc="Title, dates, time, poster, description" onClick={() => openEdit(selected)} />
+                <ActionTile icon={Close} title="Delete session" desc="Remove this webinar permanently" danger onClick={() => remove(selected.id)} />
+              </div>
+            </div>
+          )}
+        </HeroHighlight>
+      ) : (
       <HeroHighlight containerClassName="rounded-3xl border border-white/10 bg-black/40 p-5 sm:p-8" radius={200}>
         {/* header + create button */}
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -692,7 +981,7 @@ function LibraryManager() {
             <h1 className="text-2xl font-bold text-white">
               Webinar Library <span className="text-white/40">({list.length})</span>
             </h1>
-            <p className="mt-1 text-sm text-white/50">Your published webinars — click a card to edit it.</p>
+            <p className="mt-1 text-sm text-white/50">Your published webinars. Manage each one in <span className="text-white/70">Webinar Settings</span>.</p>
             {list.filter((w) => !w.link).length > 0 && (
               <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300 ring-1 ring-amber-500/30">
                 ⚠ {list.filter((w) => !w.link).length} session{list.filter((w) => !w.link).length > 1 ? 's' : ''} missing a join link
@@ -765,45 +1054,24 @@ function LibraryManager() {
                         <Bell width={9} height={9} /> Popup on
                       </span>
                     )}
-                    <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition group-hover:opacity-100">
-                      <button
-                        onClick={() => setPopupFor(w)}
-                        title="Popup notification"
-                        className={`grid h-7 w-7 place-items-center rounded-full text-white/80 hover:text-white ${
-                          w.popup?.active
-                            ? 'bg-claude-500/80 text-white'
-                            : 'bg-black/50 hover:bg-claude-500/80'
-                        }`}
-                      >
-                        <Bell width={13} height={13} />
-                      </button>
-                      <button
-                        onClick={() => openEdit(w)}
-                        title="Edit"
-                        className="grid h-7 w-7 place-items-center rounded-full bg-black/50 text-white/80 hover:bg-brand-500/80 hover:text-white"
-                      >
-                        <Pencil width={13} height={13} />
-                      </button>
-                      <button
-                        onClick={() => remove(w.id)}
-                        title="Remove"
-                        className="grid h-7 w-7 place-items-center rounded-full bg-black/50 text-white/80 hover:bg-red-500/70"
-                      >
-                        <Close width={14} height={14} />
-                      </button>
-                    </div>
+                    {regConfig(w).enabled === false && (
+                      <span className="absolute bottom-2 left-2.5 inline-flex items-center gap-1 rounded-full bg-red-500/25 px-2 py-0.5 text-[0.55rem] font-bold uppercase tracking-wide text-red-200 ring-1 ring-red-400/40 backdrop-blur">
+                        Reg off
+                      </span>
+                    )}
                   </div>
-                  <button onClick={() => openEdit(w)} className="block w-full p-3 text-left">
+                  <div className="p-3">
                     <p className="line-clamp-1 text-sm font-bold text-white">{w.title}</p>
                     <p className="mt-0.5 line-clamp-1 text-xs text-white/50">
-                      {w.presenter} · {w.date}
+                      {w.presenter} · {sessionDateLabel(w)}
                     </p>
-                  </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
       </HeroHighlight>
+      )}
 
       {/* create / edit modal */}
       {showForm && (
@@ -856,8 +1124,34 @@ function LibraryManager() {
                 ))}
               </select>
             </div>
+            {/* Single-day vs multi-day toggle */}
+            <div className="sm:col-span-2">
+              <label className="mb-2 block text-sm font-semibold text-white/80">Duration in days</label>
+              <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1">
+                <button
+                  type="button"
+                  onClick={() => setMultiDay(false)}
+                  className={`rounded-full px-5 py-2 text-sm font-bold transition ${
+                    !form.multiDay ? 'bg-brand-500 text-white shadow' : 'text-white/55 hover:text-white'
+                  }`}
+                >
+                  Single day
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMultiDay(true)}
+                  className={`rounded-full px-5 py-2 text-sm font-bold transition ${
+                    form.multiDay ? 'bg-brand-500 text-white shadow' : 'text-white/55 hover:text-white'
+                  }`}
+                >
+                  Multiple days
+                </button>
+              </div>
+            </div>
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-white/80">Date</label>
+              <label className="mb-1.5 block text-sm font-semibold text-white/80">
+                {form.multiDay ? 'From date' : 'Date'}
+              </label>
               <input
                 type="date"
                 value={form.dateISO}
@@ -865,6 +1159,18 @@ function LibraryManager() {
                 className={`${input} [color-scheme:dark]`}
               />
             </div>
+            {form.multiDay && (
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-white/80">To date</label>
+                <input
+                  type="date"
+                  value={form.endDateISO}
+                  min={form.dateISO || undefined}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className={`${input} [color-scheme:dark]`}
+                />
+              </div>
+            )}
             <Text label="Title" full value={form.title} onChange={(v) => set('title', v)} placeholder="Claude Foundations for Educators" cls={input} />
             <Text label="Presenter" value={form.presenter} onChange={(v) => set('presenter', v)} placeholder="Bobby Pamarthi" cls={input} />
             <Text label="Presenter role" value={form.role} onChange={(v) => set('role', v)} placeholder="Head of AI Training" cls={input} />
@@ -925,7 +1231,10 @@ function LibraryManager() {
             </div>
 
             <p className="-mt-1 text-xs text-white/40 sm:col-span-2">
-              Shown on the card as: <span className="font-semibold text-white/70">{form.time}</span>
+              Shown on the card as:{' '}
+              <span className="font-semibold text-white/70">
+                {sessionDateLabel(form) || '—'} · {form.time}
+              </span>
             </p>
             <Text label="Webinar link" full value={form.link} onChange={(v) => set('link', v)} placeholder="https://zoom.us/j/…  ·  Teams / Google Meet link" cls={input} />
             <Text label="Short summary" full value={form.summary} onChange={(v) => set('summary', v)} placeholder="One line shown on the card" cls={input} />
@@ -959,6 +1268,14 @@ function LibraryManager() {
           webinar={popupFor}
           onClose={() => setPopupFor(null)}
           onSaved={onPopupSaved}
+        />
+      )}
+
+      {regFor && (
+        <RegistrationConfigModal
+          webinar={regFor}
+          onClose={() => setRegFor(null)}
+          onSaved={onRegSaved}
         />
       )}
     </>
@@ -1168,6 +1485,196 @@ function PopupConfigModal({ webinar, onClose, onSaved }) {
                 Turn off
               </button>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---------------- Registration settings (seat cap + on/off + schedule) ---------------- */
+// A pill toggle matching the popup modal's style.
+function Toggle({ on, onClick, label }) {
+  return (
+    <button type="button" onClick={onClick} className="flex items-center gap-3">
+      <span className={`relative h-6 w-11 rounded-full transition ${on ? 'bg-brand-500' : 'bg-white/15'}`}>
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${on ? 'left-[1.375rem]' : 'left-0.5'}`}
+        />
+      </span>
+      <span className="text-sm font-medium text-white/80">{label}</span>
+    </button>
+  )
+}
+
+function RegistrationConfigModal({ webinar, onClose, onSaved }) {
+  const cfg0 = regConfig(webinar)
+  const [enabled, setEnabled] = useState(cfg0.enabled)
+  const [capacity, setCapacity] = useState(String(cfg0.capacity))
+  const [closeHrs, setCloseHrs] = useState(String(cfg0.closeHoursBefore))
+  const [scheduled, setScheduled] = useState(Boolean(cfg0.opensAt || cfg0.closesAt))
+  const [opensAt, setOpensAt] = useState(cfg0.opensAt || '')
+  const [closesAt, setClosesAt] = useState(cfg0.closesAt || '')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const count = webinar.regCount || 0
+
+  const input =
+    'w-full rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-400/60'
+
+  const save = async () => {
+    const cap = Number(capacity)
+    if (!(cap > 0)) return setError('Seat cap must be at least 1.')
+    if (closeHrs !== '' && Number(closeHrs) < 0) return setError('“Close hours before” can’t be negative.')
+    if (scheduled && opensAt && closesAt && closesAt <= opensAt)
+      return setError('The scheduled close time must be after the open time.')
+    setError('')
+    const payload = {
+      enabled,
+      capacity: Math.floor(cap),
+      closeHoursBefore: closeHrs !== '' && Number(closeHrs) >= 0 ? Number(closeHrs) : DEFAULT_CLOSE_HOURS_BEFORE,
+      opensAt: scheduled ? opensAt : '',
+      closesAt: scheduled ? closesAt : '',
+    }
+    setSaving(true)
+    try {
+      await saveRegistration(webinar.id, payload)
+      onSaved(webinar.id, payload)
+      onClose()
+    } catch (err) {
+      console.error('[admin] registration save failed →', err)
+      setError('Could not save — is the API server running?')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative my-8 w-full max-w-lg rounded-3xl border border-white/10 bg-neutral-950 p-6 sm:p-8">
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/60 transition hover:bg-white/10 hover:text-white"
+        >
+          <Close width={18} height={18} />
+        </button>
+        <h2 className="flex items-center gap-2 text-2xl font-bold text-white">
+          <Users width={20} height={20} className="text-brand-400" /> Registration
+        </h2>
+        <p className="mt-1 text-sm text-white/50">
+          For <span className="font-semibold text-white/80">{webinar.title}</span>. All times are IST.
+        </p>
+
+        {/* live count */}
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+          <p className="text-sm text-white/70">
+            <span className="text-lg font-bold text-white">{count}</span> of{' '}
+            <span className="font-semibold text-white/80">{capacity || DEFAULT_CAPACITY}</span> seats taken
+          </p>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* master on/off — explicit two-button control so a stray click can't
+              silently flip the state (which a single slider toggle invited). */}
+          <div className="sm:col-span-2">
+            <label className="mb-2 block text-sm font-semibold text-white/80">Registration</label>
+            <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] p-1">
+              <button
+                type="button"
+                onClick={() => setEnabled(true)}
+                className={`rounded-full px-6 py-2 text-sm font-bold transition ${
+                  enabled ? 'bg-brand-500 text-white shadow' : 'text-white/55 hover:text-white'
+                }`}
+              >
+                Open
+              </button>
+              <button
+                type="button"
+                onClick={() => setEnabled(false)}
+                className={`rounded-full px-6 py-2 text-sm font-bold transition ${
+                  !enabled ? 'bg-red-500 text-white shadow' : 'text-white/55 hover:text-white'
+                }`}
+              >
+                Closed
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-white/40">
+              {enabled
+                ? 'Open — students can register (subject to seats, the 24h cutoff, and any schedule below).'
+                : 'Closed — the session shows “Registration closed” on the site, regardless of seats or schedule.'}
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">Seat cap</label>
+            <input
+              type="number"
+              min="1"
+              value={capacity}
+              onChange={(e) => setCapacity(e.target.value)}
+              className={input}
+            />
+            <p className="mt-1 text-xs text-white/40">Default {DEFAULT_CAPACITY} — one confirmation email per seat.</p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-white/80">Close (hours before)</label>
+            <input
+              type="number"
+              min="0"
+              value={closeHrs}
+              onChange={(e) => setCloseHrs(e.target.value)}
+              className={input}
+            />
+            <p className="mt-1 text-xs text-white/40">Default {DEFAULT_CLOSE_HOURS_BEFORE}h — cool-down for the mail queue.</p>
+          </div>
+
+          {/* scheduled open/close */}
+          <div className="sm:col-span-2 border-t border-white/10 pt-4">
+            <Toggle
+              on={scheduled}
+              onClick={() => setScheduled((v) => !v)}
+              label="Schedule when registration opens / closes"
+            />
+            {scheduled && (
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-white/80">Opens at</label>
+                  <input
+                    type="datetime-local"
+                    value={opensAt}
+                    onChange={(e) => setOpensAt(e.target.value)}
+                    className={`${input} [color-scheme:dark]`}
+                  />
+                  <p className="mt-1 text-xs text-white/40">Leave blank to open immediately.</p>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-white/80">Closes at</label>
+                  <input
+                    type="datetime-local"
+                    value={closesAt}
+                    min={opensAt || undefined}
+                    onChange={(e) => setClosesAt(e.target.value)}
+                    className={`${input} [color-scheme:dark]`}
+                  />
+                  <p className="mt-1 text-xs text-white/40">The 24h-before cutoff still applies, whichever is sooner.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {error && <p className="text-sm text-claude-400 sm:col-span-2">{error}</p>}
+
+          <div className="mt-1 sm:col-span-2">
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-60"
+            >
+              {saving ? 'Saving…' : 'Save settings'}
+            </button>
           </div>
         </div>
       </div>

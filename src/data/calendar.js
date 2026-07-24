@@ -35,6 +35,16 @@ function parseStart(w) {
   return { h: 9, min: 0 }
 }
 
+// End day for a multi-day session (endDateISO / sessionEndDateISO), or null.
+function parseEndDate(w) {
+  const iso = w.endDateISO || w.sessionEndDateISO
+  if (typeof iso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [y, m, d] = iso.split('-').map(Number)
+    return { y, m: m - 1, d }
+  }
+  return null
+}
+
 function parseDuration(w) {
   const src = (w.time || '').toLowerCase()
   if (/full\s*day/.test(src)) return 480
@@ -62,7 +72,14 @@ export function buildEvent(w) {
 
   const startMs = Date.UTC(date.y, date.m, date.d, h, min) - TZ_OFFSET_MIN * 60000
   const start = new Date(startMs)
-  const end = new Date(startMs + durationMin * 60000)
+  // Multi-day session: end on the last day at the same start time + duration.
+  const endDate = parseEndDate(w)
+  let endMs = startMs + durationMin * 60000
+  if (endDate) {
+    const endStartMs = Date.UTC(endDate.y, endDate.m, endDate.d, h, min) - TZ_OFFSET_MIN * 60000
+    if (endStartMs > startMs) endMs = endStartMs + durationMin * 60000
+  }
+  const end = new Date(endMs)
 
   const link = w.link || ''
   const isUrl = /^https?:\/\//i.test(link)

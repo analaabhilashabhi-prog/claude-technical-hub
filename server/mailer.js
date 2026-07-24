@@ -255,13 +255,21 @@ export function emailHtml({ booking, event, gcalUrl, outUrl, ref = '', assets = 
     th: assets.th || 'cid:thmark',
   }
 
-  const dShort = event.start.toLocaleDateString('en-US', {
-    timeZone: 'Asia/Kolkata', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-  })
+  // Multi-day session? Show the date as a range and keep Duration as the daily
+  // length (the event span would otherwise read like "48 hours").
+  const multiDay = Boolean(
+    booking.sessionEndDateISO && booking.sessionDateISO && booking.sessionEndDateISO !== booking.sessionDateISO
+  )
+  const istDate = (d, opts) => d.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', ...opts })
+  const dShort = multiDay
+    ? `${istDate(event.start, { month: 'short', day: 'numeric' })} – ${istDate(event.end, { month: 'short', day: 'numeric', year: 'numeric' })}`
+    : istDate(event.start, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
   const tPart = event.start.toLocaleTimeString('en-US', {
     timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit',
   })
-  const durationText = fmtDuration(Math.round((event.end - event.start) / 60000)) || '—'
+  const durationText = multiDay
+    ? String(booking.duration || '').trim() || 'Multiple days'
+    : fmtDuration(Math.round((event.end - event.start) / 60000)) || '—'
   const kindUpper = (booking.kind ? String(booking.kind) : 'Session').toUpperCase()
   const fullName = [booking.firstName, booking.lastName].filter(Boolean).map(esc).join(' ') || 'Guest'
   const college = booking.college ? esc(booking.college) : ''

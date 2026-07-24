@@ -16,12 +16,19 @@ import BookingModal from './components/BookingModal'
 import WebinarPopup from './components/WebinarPopup'
 import AdminPage from './components/AdminPage'
 import WebinarsPage from './components/WebinarsPage'
+import { clearAdminToken } from './data/api'
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash)
 
   useEffect(() => {
-    const onHash = () => setHash(window.location.hash)
+    const onHash = () => {
+      const next = window.location.hash
+      // Leaving the admin area (e.g. hitting Back or "Back to site") ends the
+      // admin session — they must log in again to return.
+      if (next !== '#admin') clearAdminToken()
+      setHash(next)
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])

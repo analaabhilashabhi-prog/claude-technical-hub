@@ -16,8 +16,140 @@ import { Webinar, Booking, MergeLog } from './models.js'
 import { sendWebinarConfirmation } from './mailer.js'
 import { login, requireAuth } from './auth.js'
 import { canonicalEmail, normalizeMobile, cleanText, isValidEmail, isValidMobile } from './normalize.js'
+// Controlled option lists (shared with the frontend) — used to server-validate the
+// State / City / Course / Year fields so a crafted request can't slip bad data in.
+import { INDIAN_STATES, COURSES, YEAR_LEVELS } from '../src/data/formOptions.js'
+import { STATE_CITIES } from '../src/data/indiaCities.js'
 
 const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/* ---------------- Registration windows / seat caps ----------------
+ * Each webinar (a "slot") can only take so many registrations, because the org
+ * mailbox that sends the confirmation email is capped at ~600 sends/day — so the
+ * default seat cap per slot is 600. On top of that, admins can turn a slot's
+ * registration on/off, and registration always closes N hours before the session
+ * starts (default 24h) so there's cool-down room for the mail queue.
+ * All times are IST (Asia/Kolkata, UTC+5:30), matching server/calendar.js. */
+const IST_OFFSET_MIN = 330
+const DEFAULT_CAPACITY = 600
+const DEFAULT_CLOSE_HOURS_BEFORE = 24
+
+// A datetime-local string ("2026-08-12T16:00", no zone) read as IST → epoch ms.
+function istLocalToMs(s) {
+  const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  if (!m) return null
+  const [, y, mo, d, h, mi] = m.map(Number)
+  return Date.UTC(y, mo - 1, d, h, mi) - IST_OFFSET_MIN * 60000
+}
+
+// A webinar doc's session start (IST wall-clock → epoch ms), from dateISO/date +
+// startH/startM/ampm (falling back to the "time" display string).
+function sessionStartMs(w) {
+  let y, mo, d
+  if (w.dateISO && /^\d{4}-\d{2}-\d{2}$/.test(w.dateISO)) {
+    const p = w.dateISO.split('-').map(Number)
+    y = p[0]; mo = p[1] - 1; d = p[2]
+  } else {
+    const dt = new Date(w.date)
+    if (isNaN(dt.getTime())) return null
+    y = dt.getFullYear(); mo = dt.getMonth(); d = dt.getDate()
+  }
+  let h = 9, min = 0
+  if (w.startH && w.ampm) {
+    h = Number(w.startH) % 12
+    if (String(w.ampm).toUpperCase() === 'PM') h += 12
+    min = Number(w.startM || 0)
+  } else {
+    const t = String(w.time || '').match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+    if (t) {
+      h = Number(t[1]) % 12
+      if (t[3].toUpperCase() === 'PM') h += 12
+      min = Number(t[2])
+    }
+  }
+  return Date.UTC(y, mo, d, h, min) - IST_OFFSET_MIN * 60000
+}
+
+// Normalize whatever the admin saved into a full registration config.
+function regConfig(w) {
+  const reg = w.registration || {}
+  const capacity = Number(reg.capacity) > 0 ? Math.floor(Number(reg.capacity)) : DEFAULT_CAPACITY
+  const closeHoursBefore =
+    reg.closeHoursBefore != null && Number(reg.closeHoursBefore) >= 0
+      ? Number(reg.closeHoursBefore)
+      : DEFAULT_CLOSE_HOURS_BEFORE
+  return {
+    enabled: reg.enabled !== false, // default ON for older sessions with no config
+    capacity,
+    closeHoursBefore,
+    opensAt: typeof reg.opensAt === 'string' ? reg.opensAt : '',
+    closesAt: typeof reg.closesAt === 'string' ? reg.closesAt : '',
+  }
+}
+
+// Whether registration is open for a webinar right now, and why not if it isn't.
+// `count` is how many have already registered for this slot.
+function regStatus(w, count, now = Date.now()) {
+  const cfg = regConfig(w)
+  const c = Number(count) || 0
+  const remaining = Math.max(0, cfg.capacity - c)
+  const opensAtMs = istLocalToMs(cfg.opensAt)
+  const closesAtMs = istLocalToMs(cfg.closesAt)
+  // For multi-day sessions the cutoff is measured from the LAST day, so
+  // registration stays open through the run. Single-day: same as the start.
+  const isMultiDay =
+    typeof w.endDateISO === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(w.endDateISO) && w.endDateISO !== w.dateISO
+  const cutoffBase = isMultiDay ? sessionStartMs({ ...w, dateISO: w.endDateISO }) : sessionStartMs(w)
+  const cutoffMs = cutoffBase != null ? cutoffBase - cfg.closeHoursBefore * 3600000 : null
+  // The moment registration actually closes = the earliest of the 24h-before
+  // cutoff and any scheduled close time.
+  const closeCandidates = [cutoffMs, closesAtMs].filter((v) => v != null)
+  const closeAtMs = closeCandidates.length ? Math.min(...closeCandidates) : null
+
+  let state = 'open'
+  let message = ''
+  if (!cfg.enabled) {
+    state = 'disabled'
+    message = 'Registration for this session is currently closed.'
+  } else if (opensAtMs != null && now < opensAtMs) {
+    state = 'scheduled'
+    message = 'Registration for this session hasn’t opened yet.'
+  } else if (c >= cfg.capacity) {
+    state = 'full'
+    message = 'This session is fully booked.'
+  } else if (cutoffMs != null && now > cutoffMs) {
+    state = 'cutoff'
+    message = `Registration closes ${cfg.closeHoursBefore} hours before the session starts.`
+  } else if (closesAtMs != null && now > closesAtMs) {
+    state = 'closed'
+    message = 'Registration has closed for this session.'
+  }
+
+  return {
+    open: state === 'open',
+    state,
+    message,
+    count: c,
+    capacity: cfg.capacity,
+    remaining,
+    enabled: cfg.enabled,
+    closeHoursBefore: cfg.closeHoursBefore,
+    opensAt: cfg.opensAt,
+    closesAt: cfg.closesAt,
+    closeAtMs, // epoch ms when registration closes (for a countdown), or null
+  }
+}
+
+// One aggregation → { webinarId: count } for all webinar registrations.
+async function regCounts() {
+  const rows = await Booking.aggregate([
+    { $match: { type: 'webinar' } },
+    { $group: { _id: '$webinarId', count: { $sum: 1 } } },
+  ])
+  const map = {}
+  for (const r of rows) if (r._id) map[r._id] = r.count
+  return map
+}
 
 // TESTING TOGGLE (off by default — safe for real use). Set
 // ALLOW_DUPLICATE_TESTING=true in .env to let the same email/mobile register for a
@@ -55,10 +187,23 @@ if (!URI) {
   process.exit(1)
 }
 
-// Strip Mongo internals; return the plain client shape.
+// Strip Mongo internals; return the plain client shape. Each webinar is enriched
+// with its current seat count (regCount) and a computed registration status so
+// the public register page can show "X of 600 registered" and gate the button.
 async function webinarList() {
-  const docs = await Webinar.find().sort({ createdAt: -1 }).lean()
-  return docs.map(({ _id, __v, createdAt, updatedAt, ...w }) => w)
+  const [docs, counts] = await Promise.all([
+    Webinar.find().sort({ createdAt: -1 }).lean(),
+    regCounts(),
+  ])
+  return docs.map(({ _id, __v, createdAt, updatedAt, ...w }) => {
+    const count = counts[w.id] || 0
+    return {
+      ...w,
+      registration: regConfig(w),
+      regCount: count,
+      regStatus: regStatus(w, count),
+    }
+  })
 }
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }))
@@ -125,6 +270,45 @@ app.get('/api/popups', async (_req, res, next) => {
         ...d.popup,
       }))
     )
+  } catch (e) {
+    next(e)
+  }
+})
+
+/* ---------------- Registration windows / seat caps ---------------- */
+// Admin-only: turn a webinar's registration on/off, set its seat cap, the
+// "close N hours before" cutoff, and optional scheduled open/close times.
+// Stored on the webinar doc under `registration` (like `popup`), saved on its
+// own so the (large) poster is never resent.
+app.put('/api/webinars/:id/registration', requireAuth, async (req, res, next) => {
+  try {
+    const b = req.body || {}
+    const registration = {
+      enabled: b.enabled !== false,
+      capacity: Number(b.capacity) > 0 ? Math.floor(Number(b.capacity)) : DEFAULT_CAPACITY,
+      closeHoursBefore:
+        b.closeHoursBefore != null && Number(b.closeHoursBefore) >= 0
+          ? Number(b.closeHoursBefore)
+          : DEFAULT_CLOSE_HOURS_BEFORE,
+      opensAt: typeof b.opensAt === 'string' ? b.opensAt : '',
+      closesAt: typeof b.closesAt === 'string' ? b.closesAt : '',
+    }
+    const result = await Webinar.updateOne({ id: req.params.id }, { $set: { registration } })
+    if (result.matchedCount === 0) return res.status(404).json({ error: 'Webinar not found' })
+    res.json({ ok: true, registration })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// Public: a fresh registration status + live seat count for one webinar, so the
+// register modal can re-check right before showing the form (avoids a stale cap).
+app.get('/api/webinars/:id/registration', async (req, res, next) => {
+  try {
+    const w = await Webinar.findOne({ id: req.params.id }).lean()
+    if (!w) return res.status(404).json({ error: 'Webinar not found' })
+    const count = await Booking.countDocuments({ type: 'webinar', webinarId: req.params.id })
+    res.json(regStatus(w, count))
   } catch (e) {
     next(e)
   }
@@ -296,19 +480,17 @@ app.get('/api/bookings/:type', requireAuth, async (req, res, next) => {
   }
 })
 
-// Public: has a webinar's email/mobile already registered? Lets the form warn
-// before submit. Must be declared before the admin GET /bookings/:type route.
+// Public: is this exact email+mobile combo already registered for the webinar?
+// Lets the form warn before submit (matches the "block only if both match" rule).
+// Must be declared before the admin GET /bookings/:type route.
 app.get('/api/bookings/webinar/check', async (req, res, next) => {
   try {
     const { webinarId, email, mobile } = req.query
-    if (!webinarId) return res.json({ emailTaken: false, mobileTaken: false })
     const emailNorm = canonicalEmail(email || '')
     const mobileNorm = normalizeMobile(mobile || '')
-    const [e, m] = await Promise.all([
-      emailNorm ? Booking.exists({ type: 'webinar', webinarId, emailNorm }) : null,
-      mobileNorm ? Booking.exists({ type: 'webinar', webinarId, mobileNorm }) : null,
-    ])
-    res.json({ emailTaken: Boolean(e), mobileTaken: Boolean(m) })
+    if (!webinarId || !emailNorm || !mobileNorm) return res.json({ taken: false })
+    const hit = await Booking.exists({ type: 'webinar', webinarId, emailNorm, mobileNorm })
+    res.json({ taken: Boolean(hit) })
   } catch (e) {
     next(e)
   }
@@ -339,8 +521,13 @@ async function registerWebinar(data, submittedAt, res) {
   const mobileNorm = normalizeMobile(data.mobile)
   const state = cleanText(data.state)
   const city = cleanText(data.city)
+  const cityManual = Boolean(data.cityManual) // student typed a city not in our list
   const collegeName = cleanText(data.college ?? data['Organization-College Name'])
-  const course = cleanText(data.course)
+  const courseChoice = cleanText(data.courseChoice || data.course) // the dropdown pick
+  const courseOther = cleanText(data.courseOther)
+  // Final course value: the free-text when "Other" was picked, else the pick itself.
+  const course = courseChoice === 'Other' ? courseOther : cleanText(data.course) || courseChoice
+  const year = cleanText(data.year)
   const webinarId = cleanText(data.webinarId)
 
   // server-authoritative validation (never trust the client)
@@ -348,7 +535,21 @@ async function registerWebinar(data, submittedAt, res) {
   if (!firstName) fields.firstName = 'First name is required'
   if (!emailRaw || !isValidEmail(emailRaw)) fields.email = 'A valid email is required'
   if (!isValidMobile(data.mobile)) fields.mobile = 'A valid 10-digit mobile (starting 6–9) is required'
+  // State + City. City must belong to the chosen State — UNLESS the student
+  // flagged it as manual entry (their city isn't in our list), in which case any
+  // non-empty city is accepted.
+  if (!state || !INDIAN_STATES.includes(state)) fields.state = 'Select a valid state'
+  else if (cityManual) {
+    if (!city) fields.city = 'Enter your city'
+  } else if (!city || !(STATE_CITIES[state] || []).includes(city)) {
+    fields.city = 'Select a city in that state'
+  }
   if (!collegeName) fields.college = 'College is required'
+  // Course (must be a known option; "Other" requires the free-text course)
+  if (!courseChoice || !COURSES.includes(courseChoice)) fields.course = 'Select a valid course'
+  else if (courseChoice === 'Other' && !course) fields.course = 'Enter your course'
+  // Year of study
+  if (!year || !YEAR_LEVELS.includes(year)) fields.year = 'Select your year of study'
   if (!webinarId) fields.webinar = 'Missing webinar reference — please reopen and try again'
   if (Object.keys(fields).length) {
     return res.status(400).json({ error: 'Please check the highlighted fields.', fields })
@@ -360,12 +561,34 @@ async function registerWebinar(data, submittedAt, res) {
   //   return res.status(403).json({ error: 'Please verify your email with the code we sent.', field: 'email' })
   // }
 
-  // duplicate guard: same email OR mobile already registered for THIS webinar
+  // Registration window / seat cap: the slot must exist, be turned on, be inside
+  // its open window (not before the scheduled open, not past the 24h-before
+  // cutoff or scheduled close) and still have seats. Note: the seat check isn't
+  // atomic, so two submits racing for the last seat could both pass — acceptable
+  // here (at worst one extra confirmation email over the daily cap).
+  const webinar = await Webinar.findOne({ id: webinarId }).lean()
+  if (!webinar) {
+    return res.status(404).json({ error: 'This session is no longer available.', field: 'webinar' })
+  }
+  const seatCount = await Booking.countDocuments({ type: 'webinar', webinarId })
+  const status = regStatus(webinar, seatCount)
+  if (!status.open) {
+    return res.status(status.state === 'full' ? 409 : 403).json({
+      error: status.message || 'Registration is closed for this session.',
+      regClosed: true,
+      state: status.state,
+    })
+  }
+
+  // duplicate guard: block only when the SAME email AND mobile are both already
+  // registered for THIS webinar (the exact combo).
   if (!ALLOW_DUPLICATE_TESTING) {
-    const clash = await Booking.findOne({ type: 'webinar', webinarId, $or: [{ emailNorm }, { mobileNorm }] }).lean()
+    const clash = await Booking.findOne({ type: 'webinar', webinarId, emailNorm, mobileNorm }).lean()
     if (clash) {
-      const which = clash.emailNorm === emailNorm ? 'email' : 'mobile'
-      return res.status(409).json({ error: `This ${which} is already registered for this webinar.`, field: which })
+      return res.status(409).json({
+        error: 'This email + mobile is already registered for this webinar.',
+        field: 'combo',
+      })
     }
   }
 
@@ -378,6 +601,7 @@ async function registerWebinar(data, submittedAt, res) {
     state,
     city,
     course,
+    year,
     college: collegeName,
     'Organization-College Name': collegeName, // keep legacy field in sync for the table/analytics
     webinarId,
@@ -403,8 +627,8 @@ async function registerWebinar(data, submittedAt, res) {
   }
 
   // Branded welcome/confirmation email — fire-and-forget so a mail hiccup never
-  // fails a registration (the student is already saved). In dev with no SMTP
-  // creds this sends via Ethereal and logs a preview URL to the server console.
+  // fails a registration (the student is already saved). Sends via Microsoft
+  // Graph (real delivery). The separate OTP verification email stays PARKED.
   sendWebinarConfirmation(record).catch((err) => console.error('[mailer] welcome failed →', err.message))
   // PARKED — one-time OTP consume (re-enable with OTP verification; commit e42ec41):
   // otpStore.delete(emailNorm)

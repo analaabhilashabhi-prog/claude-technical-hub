@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { getWebinars } from '../data/webinarStore'
-import { createBooking, listColleges, checkRegistration } from '../data/api'
+import { getWebinars, sessionDateLabel, sessionDaysCount } from '../data/webinarStore'
+import { createBooking, listColleges, checkRegistration, getRegistration } from '../data/api'
+import { regStatus, regStatusLabel, fmtIstLocal, fmtCountdown } from '../data/registration'
 // PARKED (see commit e42ec41): OTP helpers — import { sendOtp, verifyOtp } from '../data/api'
 import { bookingForms, emptyFormFor, validateForm } from '../data/bookingForms'
-// PARKED (see commit e42ec41): State/City/Course option lists
-// import { INDIAN_STATES, COURSES } from '../data/formOptions'
-// import { STATE_CITIES } from '../data/indiaCities'
+import { INDIAN_STATES, COURSES, YEAR_LEVELS } from '../data/formOptions'
+import { STATE_CITIES } from '../data/indiaCities'
 import { buildEvent, googleUrl, downloadICS } from '../data/calendar'
-import { Arrow, Check, Close, Calendar } from './Icons'
+import { Arrow, Check, Close, Calendar, Users } from './Icons'
 import { useOutsideClick } from '../hooks/useOutsideClick'
 import { HeroHighlight } from './HeroHighlight'
 import { MultiStepLoader } from './MultiStepLoader'
@@ -86,21 +86,82 @@ function PosterBg({ w, small }) {
   )
 }
 
+/* ---------- Registration status ---------- */
+// NOTE: seat counts ("X of 600 registered", spots left) are intentionally NOT
+// shown to students on the public page — those live in the admin panel only.
+// The cap is still enforced server-side; the public UI just shows open/closed.
+
+// Live "closes in 2d 5h" countdown that ticks itself (re-renders only itself,
+// not the page). `compact` renders inline text; otherwise a pill.
+function CloseCountdown({ closeAtMs, compact = false, className = '' }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (closeAtMs == null) return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [closeAtMs])
+  if (closeAtMs == null) return null
+  const left = closeAtMs - now
+  const text = fmtCountdown(left)
+  const urgent = left <= 6 * 3600000 // last 6 hours
+  if (compact) {
+    return (
+      <span className={`inline-flex items-center gap-1 ${urgent ? 'text-amber-300' : 'text-white/45'} ${className}`}>
+        ⏳ Closes in {text}
+      </span>
+    )
+  }
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
+        urgent ? 'bg-amber-500/15 text-amber-300 ring-amber-400/30' : 'bg-white/5 text-white/70 ring-white/10'
+      } ${className}`}
+    >
+      ⏳ Registration closes in {text}
+    </div>
+  )
+}
+
+// Compact colored pill for a card corner — only shown when there's something
+// worth flagging (closed, full, or opening later). No seat numbers (admin-only).
+function statusBadge(status) {
+  if (!status) return null
+  if (status.state === 'full') return { label: 'Fully booked', cls: 'bg-red-500/25 text-red-200 ring-red-400/40' }
+  if (status.state === 'disabled' || status.state === 'closed' || status.state === 'cutoff')
+    return { label: 'Registration closed', cls: 'bg-neutral-500/25 text-neutral-200 ring-white/30' }
+  if (status.state === 'scheduled') return { label: 'Opens soon', cls: 'bg-sky-500/25 text-sky-200 ring-sky-400/40' }
+  return null
+}
+
 /* ---------- Registration form (inside the expanded card) ---------- */
 function RegisterForm({ w, onDone }) {
   const [form, setForm] = useState({
-    firstName: '', lastName: '', state: '', city: '', college: '', collegeId: '', course: '', mobile: '', email: '',
+    firstName: '', lastName: '', state: '', city: '', cityManual: false, college: '', collegeId: '',
+    course: '', courseOther: '', year: '', mobile: '', email: '',
   })
   const [errors, setErrors] = useState({})
   const [sug, setSug] = useState([]) // college suggestions
   const [sugOpen, setSugOpen] = useState(false)
-  const [dup, setDup] = useState({}) // { email, mobile } — soft pre-submit warnings
+  const [dup, setDup] = useState({}) // { combo } — soft pre-submit warning (email+mobile)
   const [done, setDone] = useState(false)
   const [loading, setLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
+  // Registration status — seeded from what the list already knows, then refreshed
+  // with a live count the moment the form opens (so a stale cap can't overbook).
+  const [regState, setRegState] = useState(() => regStatus(w))
 
   const set = (name, val) => setForm((f) => ({ ...f, [name]: val }))
   // PARKED (see commit e42ec41): email OTP verification — send code / verify / gate submit.
+
+  useEffect(() => {
+    let alive = true
+    getRegistration(w.id)
+      .then((s) => alive && setRegState(s))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [w.id])
 
   // Debounced college suggestions from names already in the database (skipped
   // once a suggestion is picked).
@@ -127,12 +188,13 @@ function RegisterForm({ w, onDone }) {
     setSug([])
   }
 
-  // Warn early if this email/mobile already registered for this webinar.
+  // Warn early if this exact email+mobile combo already registered for this
+  // webinar (the duplicate rule blocks only when BOTH match).
   const checkDup = async () => {
     if (!w.id) return
     try {
       const r = await checkRegistration({ webinarId: w.id, email: form.email, mobile: form.mobile })
-      setDup({ email: r.emailTaken, mobile: r.mobileTaken })
+      setDup({ combo: Boolean(r.taken) })
     } catch {
       /* ignore — this is only a hint; the server enforces on submit */
     }
@@ -143,7 +205,12 @@ function RegisterForm({ w, onDone }) {
     if (!f.firstName.trim()) e.firstName = 'Required'
     else if (!/^[A-Za-z][A-Za-z\s.'-]*$/.test(f.firstName.trim())) e.firstName = 'Letters only'
     if (f.lastName.trim() && !/^[A-Za-z\s.'-]+$/.test(f.lastName.trim())) e.lastName = 'Letters only'
+    if (!f.state.trim()) e.state = 'Select your state'
+    if (!f.city.trim()) e.city = f.cityManual ? 'Enter your city' : 'Select your city'
     if (!f.college.trim()) e.college = 'Select your college'
+    if (!f.course.trim()) e.course = 'Select your course'
+    else if (f.course === 'Other' && !f.courseOther.trim()) e.courseOther = 'Enter your course'
+    if (!f.year.trim()) e.year = 'Select your year'
     if (!/^[6-9]\d{9}$/.test(f.mobile.replace(/\D/g, '').slice(-10))) e.mobile = 'Valid 10-digit mobile (6–9)'
     if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(f.email.trim())) e.email = 'Valid email required'
     return e
@@ -157,14 +224,21 @@ function RegisterForm({ w, onDone }) {
     const record = {
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
+      state: form.state.trim(),
+      city: form.city.trim(),
+      cityManual: form.cityManual,
+      course: form.course === 'Other' ? form.courseOther.trim() : form.course,
+      courseChoice: form.course, // the dropdown pick ('Other' etc.) for server validation
+      year: form.year.trim(),
       email: form.email.trim().toLowerCase(),
       mobile: form.mobile.replace(/\D/g, '').slice(-10),
       college: form.college.trim(),
       webinar: w.title,
       webinarId: w.id,
       kind: w.kind,
-      sessionDate: w.date,
+      sessionDate: sessionDateLabel(w) || w.date,
       sessionDateISO: w.dateISO || '',
+      sessionEndDateISO: w.endDateISO || '',
       sessionTime: w.time || '',
       startH: w.startH,
       startM: w.startM,
@@ -186,9 +260,13 @@ function RegisterForm({ w, onDone }) {
       setDone(true)
     } catch (err) {
       setLoading(false)
-      if (err.status === 409) {
+      if (err.body?.regClosed) {
+        // Slot filled up or its window closed while the form was open.
         setSaveError(err.message)
-        if (err.body?.field) setDup((d) => ({ ...d, [err.body.field]: true }))
+        setRegState((s) => ({ ...s, open: false, state: err.body.state || 'closed', message: err.message }))
+      } else if (err.status === 409) {
+        setSaveError(err.message)
+        setDup((d) => ({ ...d, combo: true }))
       } else if (err.status === 400 && err.body?.fields) {
         setErrors(err.body.fields)
         setSaveError('Please fix the highlighted fields.')
@@ -221,7 +299,7 @@ function RegisterForm({ w, onDone }) {
         <div className="mx-auto mt-5 max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left">
           <div className="flex items-center gap-2 text-sm font-semibold text-white">
             <Calendar className="h-4 w-4 shrink-0 text-claude-400" />
-            {w.date} · {(w.time || '').replace(/\s*IST/i, '')}
+            {sessionDateLabel(w)} · {(w.time || '').replace(/\s*IST/i, '')}
           </div>
           {w.link ? (
             <a
@@ -266,10 +344,43 @@ function RegisterForm({ w, onDone }) {
     )
   }
 
+  // Registration is not open (turned off, full, past the 24h cutoff, or not open
+  // yet) — show why instead of the form.
+  if (!regState.open) {
+    const isFull = regState.state === 'full'
+    const isScheduled = regState.state === 'scheduled'
+    return (
+      <div className="px-6 pb-8 pt-2 text-center">
+        <div
+          className={`mx-auto grid h-12 w-12 place-items-center rounded-full ring-1 ${
+            isFull ? 'bg-red-500/15 text-red-300 ring-red-500/30' : 'bg-white/5 text-white/60 ring-white/15'
+          }`}
+        >
+          {isFull ? <Users className="h-6 w-6" /> : <Close className="h-6 w-6" />}
+        </div>
+        <h3 className="mt-4 text-xl font-bold text-white">
+          {isFull ? 'This session is fully booked' : isScheduled ? 'Registration opens soon' : 'Registration is closed'}
+        </h3>
+        <p className="mt-2 text-sm text-white/60">
+          {regState.message}
+          {isScheduled && regState.opensAt ? ` Opens ${fmtIstLocal(regState.opensAt)} IST.` : ''}
+        </p>
+        <button onClick={onDone} className="mt-6 text-sm font-semibold text-white/50 transition hover:text-white/80">
+          Done
+        </button>
+      </div>
+    )
+  }
+
   return (
     <>
       <MultiStepLoader loadingStates={REGISTER_STEPS} loading={loading} duration={STEP_MS} loop={false} />
       <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-3.5 px-6 pb-8 pt-2 sm:grid-cols-2">
+        {/* "lock your slot" urgency + close countdown (no seat numbers) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:col-span-2">
+          <p className="text-xs font-semibold text-brand-300">Register now to lock your slot.</p>
+          {regState.closeAtMs != null && <CloseCountdown closeAtMs={regState.closeAtMs} compact className="text-xs font-semibold" />}
+        </div>
         <p className="text-xs text-white/45 sm:col-span-2">All fields required unless marked optional.</p>
 
         <RField label="First name" bad={errors.firstName}>
@@ -279,7 +390,43 @@ function RegisterForm({ w, onDone }) {
           <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} placeholder="Doe" className={inputCls(errors.lastName)} />
         </RField>
 
-        {/* PARKED (see commit e42ec41): State + City searchable dropdowns */}
+        <RField label="State" bad={errors.state}>
+          <SearchSelect
+            value={form.state}
+            onChange={(v) => setForm((f) => ({ ...f, state: v, city: '', cityManual: false }))}
+            options={INDIAN_STATES}
+            placeholder="Select your state"
+            error={errors.state}
+          />
+        </RField>
+        <RField label="City" bad={errors.city}>
+          {form.cityManual ? (
+            <input
+              value={form.city}
+              onChange={(e) => set('city', e.target.value)}
+              placeholder="Type your city"
+              className={inputCls(errors.city)}
+            />
+          ) : (
+            <SearchSelect
+              value={form.city}
+              onChange={(v) => set('city', v)}
+              options={STATE_CITIES[form.state] || []}
+              placeholder={form.state ? 'Select your city' : 'Pick a state first'}
+              disabled={!form.state}
+              error={errors.city}
+            />
+          )}
+          {form.state && (
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, cityManual: !f.cityManual, city: '' }))}
+              className="mt-1 text-xs font-medium text-brand-300 transition hover:text-brand-200"
+            >
+              {form.cityManual ? '← Choose from the list instead' : "Can't find your city? Enter it manually"}
+            </button>
+          )}
+        </RField>
 
         <div className="relative sm:col-span-2">
           <RField label="College / Organization" bad={errors.college}>
@@ -319,7 +466,35 @@ function RegisterForm({ w, onDone }) {
           )}
         </div>
 
-        {/* PARKED (see commit e42ec41): Course / Program dropdown */}
+        <RField label="Course / Program" bad={errors.course}>
+          <SearchSelect
+            value={form.course}
+            onChange={(v) => set('course', v)}
+            options={COURSES}
+            placeholder="Select your course"
+            error={errors.course}
+          />
+        </RField>
+        <RField label="Year of study" bad={errors.year}>
+          <SearchSelect
+            value={form.year}
+            onChange={(v) => set('year', v)}
+            options={YEAR_LEVELS}
+            placeholder="Select your year"
+            error={errors.year}
+          />
+        </RField>
+        {form.course === 'Other' && (
+          <RField label="Your course (please specify)" bad={errors.courseOther} full>
+            <input
+              value={form.courseOther}
+              onChange={(e) => set('courseOther', e.target.value)}
+              placeholder="e.g. B.Voc Software Development"
+              className={inputCls(errors.courseOther)}
+            />
+          </RField>
+        )}
+
         <RField label="Mobile" bad={errors.mobile}>
           <input
             value={form.mobile}
@@ -329,9 +504,6 @@ function RegisterForm({ w, onDone }) {
             inputMode="numeric"
             className={inputCls(errors.mobile)}
           />
-          {dup.mobile && !errors.mobile && (
-            <p className="mt-1 text-xs text-amber-400">This mobile is already registered for this webinar.</p>
-          )}
         </RField>
 
         <RField label="Email" bad={errors.email} full>
@@ -343,8 +515,8 @@ function RegisterForm({ w, onDone }) {
             placeholder="jane@college.edu"
             className={inputCls(errors.email)}
           />
-          {dup.email && !errors.email && (
-            <p className="mt-1 text-xs text-amber-400">This email is already registered for this webinar.</p>
+          {dup.combo && !errors.email && (
+            <p className="mt-1 text-xs text-amber-400">This email + mobile is already registered for this webinar.</p>
           )}
           {/* PARKED (see commit e42ec41): email OTP verify — send code / enter code / verified */}
         </RField>
@@ -498,6 +670,9 @@ export default function WebinarsPage() {
   })
   const filtered = filter === 'all' ? sessions : sessions.filter((w) => bucketOf(w) === filter)
 
+  // Registration status for the currently-open session (detail/register modal).
+  const activeStatus = active ? regStatus(active) : null
+
   return (
     <HeroHighlight containerClassName="min-h-screen overflow-hidden bg-black text-white">
       {/* decorative glows */}
@@ -587,7 +762,11 @@ export default function WebinarsPage() {
         )}
 
         <ul className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((w) => (
+          {filtered.map((w) => {
+            const st = regStatus(w)
+            const badge = statusBadge(st)
+            const days = sessionDaysCount(w)
+            return (
             <motion.div
               layoutId={`card-${w.id}`}
               key={w.id}
@@ -605,8 +784,20 @@ export default function WebinarsPage() {
                     : 'border-white/10 bg-neutral-900/60 hover:border-white/25'
               }`}
             >
-              <motion.div layoutId={`image-${w.id}`} className="aspect-video w-full">
+              <motion.div layoutId={`image-${w.id}`} className="relative aspect-video w-full">
                 <PosterBg w={w} />
+                {badge && (
+                  <span
+                    className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-wide ring-1 backdrop-blur ${badge.cls}`}
+                  >
+                    {badge.label}
+                  </span>
+                )}
+                {days > 1 && (
+                  <span className="absolute bottom-3 left-3 rounded-full bg-black/55 px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-wide text-white ring-1 ring-white/15 backdrop-blur">
+                    {days} days
+                  </span>
+                )}
               </motion.div>
               <div className="flex flex-1 flex-col p-5">
                 <motion.h3 layoutId={`title-${w.id}`} className="text-lg font-bold leading-snug text-white">
@@ -615,16 +806,28 @@ export default function WebinarsPage() {
                 <motion.p layoutId={`desc-${w.id}`} className="mt-2 line-clamp-2 flex-1 text-sm leading-relaxed text-white/50">
                   {w.description}
                 </motion.p>
-                <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-sm">
+                {/* Open sessions get a live countdown; the rest show their status. No seat counts (admin-only). */}
+                {st.open ? (
+                  st.closeAtMs != null && (
+                    <CloseCountdown closeAtMs={st.closeAtMs} compact className="mt-4 text-[0.7rem]" />
+                  )
+                ) : (
+                  <p className="mt-4 text-[0.7rem] font-semibold text-white/45">
+                    {regStatusLabel(st)}
+                    {st.state === 'scheduled' && st.opensAt ? ` · opens ${fmtIstLocal(st.opensAt)}` : ''}
+                  </p>
+                )}
+                <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-sm">
                   <span className="text-white/70">{w.presenter}</span>
                   <span className="flex items-center gap-1.5 text-white/45 transition-colors group-hover:text-claude-400">
-                    {w.date}
+                    {sessionDateLabel(w)}
                     <Arrow className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                   </span>
                 </div>
               </div>
             </motion.div>
-          ))}
+            )
+          })}
         </ul>
 
         {/* bottom CTA band */}
@@ -699,17 +902,22 @@ export default function WebinarsPage() {
                       {active.title}
                     </motion.h3>
                     <motion.p layoutId={`desc-${active.id}`} className="mt-1 text-sm text-white/55">
-                      {active.presenter} · {active.date}
+                      {active.presenter} · {sessionDateLabel(active)}
                     </motion.p>
                   </div>
-                  {stage === 'detail' && (
-                    <button
-                      onClick={() => setStage('register')}
-                      className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5"
-                    >
-                      Register
-                    </button>
-                  )}
+                  {stage === 'detail' &&
+                    (activeStatus?.open ? (
+                      <button
+                        onClick={() => setStage('register')}
+                        className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5"
+                      >
+                        Register
+                      </button>
+                    ) : (
+                      <span className="shrink-0 whitespace-nowrap rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-bold text-white/50">
+                        {regStatusLabel(activeStatus)}
+                      </span>
+                    ))}
                 </div>
 
                 {/* stage content */}
@@ -733,18 +941,44 @@ export default function WebinarsPage() {
                           <p className="text-xs uppercase tracking-wider text-white/40">When</p>
                           <p className="mt-0.5 flex items-center justify-end gap-1.5 font-semibold text-white">
                             <Calendar className="h-4 w-4 text-claude-400" />
-                            {active.date}
+                            {sessionDateLabel(active)}
                           </p>
-                          <p className="text-white/50">{active.time.replace(/\s*IST/i, '')}</p>
+                          <p className="text-white/50">
+                            {active.time.replace(/\s*IST/i, '')}
+                            {sessionDaysCount(active) > 1 ? ` · ${sessionDaysCount(active)} days` : ''}
+                          </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => setStage('register')}
-                        className="group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3.5 text-sm font-bold text-white transition hover:-translate-y-0.5"
-                      >
-                        Register for this {active.kind}
-                        <Arrow className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                      </button>
+                      {/* Seat counts are admin-only — not shown here. */}
+                      {activeStatus?.open ? (
+                        <>
+                          <button
+                            onClick={() => setStage('register')}
+                            className="group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 px-6 py-3.5 text-sm font-bold text-white transition hover:-translate-y-0.5"
+                          >
+                            Register now to lock your slot
+                            <Arrow className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                          </button>
+                          <div className="mt-3 flex flex-col items-center gap-1.5">
+                            {activeStatus.closeAtMs != null && <CloseCountdown closeAtMs={activeStatus.closeAtMs} />}
+                            <p className="text-center text-xs text-white/40">
+                              Registration closes {activeStatus.closeHoursBefore} hours before the session starts.
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-4">
+                          <div className="w-full cursor-not-allowed rounded-full border border-white/15 bg-white/5 px-6 py-3.5 text-center text-sm font-bold text-white/50">
+                            {regStatusLabel(activeStatus)}
+                          </div>
+                          <p className="mt-2 text-center text-xs text-white/45">
+                            {activeStatus?.message}
+                            {activeStatus?.state === 'scheduled' && activeStatus.opensAt
+                              ? ` Opens ${fmtIstLocal(activeStatus.opensAt)} IST.`
+                              : ''}
+                          </p>
+                        </div>
+                      )}
                     </motion.div>
                   ) : (
                     <motion.div key="register" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

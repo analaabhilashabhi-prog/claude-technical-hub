@@ -35,17 +35,22 @@ const bookingSchema = new mongoose.Schema({
   mobileNorm: { type: String },
 })
 
-// Hard backstop against duplicate registrations, even under race conditions:
-// the same webinar can't take the same normalized email or mobile twice. Partial
-// filters keep these scoped to webinar rows that actually have the keys, so old
-// records (and aiLab rows) are never affected.
+// Hard backstop against duplicate registrations, even under race conditions: the
+// same webinar can't take the same (email + mobile) PAIR twice. Blocking is on
+// the combination — the same email with a different mobile (or vice versa) is
+// allowed. Partial filter keeps this scoped to webinar rows that have all the
+// keys, so old records (and aiLab rows) are never affected.
 bookingSchema.index(
-  { webinarId: 1, emailNorm: 1 },
-  { unique: true, partialFilterExpression: { type: 'webinar', webinarId: { $type: 'string' }, emailNorm: { $type: 'string' } } }
-)
-bookingSchema.index(
-  { webinarId: 1, mobileNorm: 1 },
-  { unique: true, partialFilterExpression: { type: 'webinar', webinarId: { $type: 'string' }, mobileNorm: { $type: 'string' } } }
+  { webinarId: 1, emailNorm: 1, mobileNorm: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      type: 'webinar',
+      webinarId: { $type: 'string' },
+      emailNorm: { $type: 'string' },
+      mobileNorm: { $type: 'string' },
+    },
+  }
 )
 
 // Audit trail for admin organization-name merges, so any merge is reversible.

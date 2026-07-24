@@ -97,3 +97,14 @@ export const COURSES = [
   'Faculty / Staff',
   'Other',
 ]
+
+// Year of study — the student's current level (or alumni). Fixed list keeps the
+// data clean for filtering in the admin panel.
+export const YEAR_LEVELS = [
+  '1st year',
+  '2nd year',
+  '3rd year',
+  '4th year',
+  'Final year',
+  'Passed out / Alumni',
+]
