@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { bookingForms } from '../data/bookingForms'
 import { getWebinars, addWebinar, deleteWebinar, slugify, sessionDateLabel } from '../data/webinarStore'
 import { listBookings, clearBookings, getAdminToken, clearAdminToken, savePopup, saveRegistration } from '../data/api'
-import { regConfig, DEFAULT_CAPACITY, DEFAULT_CLOSE_HOURS_BEFORE } from '../data/registration'
+import { regConfig, DEFAULT_CAPACITY } from '../data/registration'
 import { Calendar, Cube, Close, Check, Pencil, Bell, Users } from './Icons'
 import { HeroHighlight } from './HeroHighlight'
 import AdminLogin from './AdminLogin'
@@ -965,7 +965,7 @@ function LibraryManager({ mode = 'library' }) {
 
               {/* settings for the selected webinar */}
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <ActionTile icon={Users} title="Registration" desc="Open/close, seat cap, 24h cutoff, schedule" onClick={() => setRegFor(selected)} />
+                <ActionTile icon={Users} title="Registration" desc="Open/close, seat cap, schedule" onClick={() => setRegFor(selected)} />
                 <ActionTile icon={Bell} title="Popup notification" desc="Live join-link popup on the site" onClick={() => setPopupFor(selected)} />
                 <ActionTile icon={Pencil} title="Edit details" desc="Title, dates, time, poster, description" onClick={() => openEdit(selected)} />
                 <ActionTile icon={Close} title="Delete session" desc="Remove this webinar permanently" danger onClick={() => remove(selected.id)} />
@@ -1511,7 +1511,6 @@ function RegistrationConfigModal({ webinar, onClose, onSaved }) {
   const cfg0 = regConfig(webinar)
   const [enabled, setEnabled] = useState(cfg0.enabled)
   const [capacity, setCapacity] = useState(String(cfg0.capacity))
-  const [closeHrs, setCloseHrs] = useState(String(cfg0.closeHoursBefore))
   const [scheduled, setScheduled] = useState(Boolean(cfg0.opensAt || cfg0.closesAt))
   const [opensAt, setOpensAt] = useState(cfg0.opensAt || '')
   const [closesAt, setClosesAt] = useState(cfg0.closesAt || '')
@@ -1519,6 +1518,7 @@ function RegistrationConfigModal({ webinar, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
 
   const count = webinar.regCount || 0
+  const isFull = count >= (Number(capacity) || 0)
 
   const input =
     'w-full rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-md px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-brand-400/60'
@@ -1526,14 +1526,12 @@ function RegistrationConfigModal({ webinar, onClose, onSaved }) {
   const save = async () => {
     const cap = Number(capacity)
     if (!(cap > 0)) return setError('Seat cap must be at least 1.')
-    if (closeHrs !== '' && Number(closeHrs) < 0) return setError('“Close hours before” can’t be negative.')
     if (scheduled && opensAt && closesAt && closesAt <= opensAt)
       return setError('The scheduled close time must be after the open time.')
     setError('')
     const payload = {
       enabled,
       capacity: Math.floor(cap),
-      closeHoursBefore: closeHrs !== '' && Number(closeHrs) >= 0 ? Number(closeHrs) : DEFAULT_CLOSE_HOURS_BEFORE,
       opensAt: scheduled ? opensAt : '',
       closesAt: scheduled ? closesAt : '',
     }
@@ -1602,32 +1600,41 @@ function RegistrationConfigModal({ webinar, onClose, onSaved }) {
             </div>
             <p className="mt-2 text-xs text-white/40">
               {enabled
-                ? 'Open — students can register (subject to seats, the 24h cutoff, and any schedule below).'
+                ? 'Open — students can register (until the seat cap is reached or any schedule below closes it).'
                 : 'Closed — the session shows “Registration closed” on the site, regardless of seats or schedule.'}
             </p>
           </div>
 
-          <div>
+          <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-semibold text-white/80">Seat cap</label>
-            <input
-              type="number"
-              min="1"
-              value={capacity}
-              onChange={(e) => setCapacity(e.target.value)}
-              className={input}
-            />
-            <p className="mt-1 text-xs text-white/40">Default {DEFAULT_CAPACITY} — one confirmation email per seat.</p>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-white/80">Close (hours before)</label>
-            <input
-              type="number"
-              min="0"
-              value={closeHrs}
-              onChange={(e) => setCloseHrs(e.target.value)}
-              className={input}
-            />
-            <p className="mt-1 text-xs text-white/40">Default {DEFAULT_CLOSE_HOURS_BEFORE}h — cool-down for the mail queue.</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
+                className={input}
+              />
+              <button
+                type="button"
+                onClick={() => setCapacity((c) => String((Number(c) || 0) + DEFAULT_CAPACITY))}
+                className="shrink-0 rounded-xl border border-white/15 px-3 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/5"
+                title={`Add ${DEFAULT_CAPACITY} more seats`}
+              >
+                +{DEFAULT_CAPACITY}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-white/40">
+              Registration <span className="text-white/60">auto-closes when the cap is reached</span> (one confirmation
+              email per seat — matches the {DEFAULT_CAPACITY}/day mail limit).
+              {isFull && (
+                <>
+                  {' '}
+                  <span className="text-amber-300">This slot is full ({count}/{capacity}).</span> To take another batch,
+                  tap <span className="text-white/60">+{DEFAULT_CAPACITY}</span> and save.
+                </>
+              )}
+            </p>
           </div>
 
           {/* scheduled open/close */}

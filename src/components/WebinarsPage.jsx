@@ -127,7 +127,7 @@ function CloseCountdown({ closeAtMs, compact = false, className = '' }) {
 function statusBadge(status) {
   if (!status) return null
   if (status.state === 'full') return { label: 'Fully booked', cls: 'bg-red-500/25 text-red-200 ring-red-400/40' }
-  if (status.state === 'disabled' || status.state === 'closed' || status.state === 'cutoff')
+  if (status.state === 'disabled' || status.state === 'closed')
     return { label: 'Registration closed', cls: 'bg-neutral-500/25 text-neutral-200 ring-white/30' }
   if (status.state === 'scheduled') return { label: 'Opens soon', cls: 'bg-sky-500/25 text-sky-200 ring-sky-400/40' }
   return null
@@ -344,8 +344,8 @@ function RegisterForm({ w, onDone }) {
     )
   }
 
-  // Registration is not open (turned off, full, past the 24h cutoff, or not open
-  // yet) — show why instead of the form.
+  // Registration is not open (turned off, full, or not open yet) — show why
+  // instead of the form.
   if (!regState.open) {
     const isFull = regState.state === 'full'
     const isScheduled = regState.state === 'scheduled'
@@ -959,12 +959,11 @@ export default function WebinarsPage() {
                             Register now to lock your slot
                             <Arrow className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                           </button>
-                          <div className="mt-3 flex flex-col items-center gap-1.5">
-                            {activeStatus.closeAtMs != null && <CloseCountdown closeAtMs={activeStatus.closeAtMs} />}
-                            <p className="text-center text-xs text-white/40">
-                              Registration closes {activeStatus.closeHoursBefore} hours before the session starts.
-                            </p>
-                          </div>
+                          {activeStatus.closeAtMs != null && (
+                            <div className="mt-3 flex justify-center">
+                              <CloseCountdown closeAtMs={activeStatus.closeAtMs} />
+                            </div>
+                          )}
                         </>
                       ) : (
                         <div className="mt-4">

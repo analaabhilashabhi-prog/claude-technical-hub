@@ -26,13 +26,13 @@ const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 /* ---------------- Registration windows / seat caps ----------------
  * Each webinar (a "slot") can only take so many registrations, because the org
  * mailbox that sends the confirmation email is capped at ~600 sends/day — so the
- * default seat cap per slot is 600. On top of that, admins can turn a slot's
- * registration on/off, and registration always closes N hours before the session
- * starts (default 24h) so there's cool-down room for the mail queue.
+ * default seat cap per slot is 600. When the cap is reached registration
+ * auto-closes; the admin can turn it back on (and raise the cap for the next
+ * batch) once the day's mail quota resets. Admins can also turn a slot's
+ * registration on/off at any time, and optionally schedule an open/close time.
  * All times are IST (Asia/Kolkata, UTC+5:30), matching server/calendar.js. */
 const IST_OFFSET_MIN = 330
 const DEFAULT_CAPACITY = 600
-const DEFAULT_CLOSE_HOURS_BEFORE = 24
 
 // A datetime-local string ("2026-08-12T16:00", no zone) read as IST → epoch ms.
 function istLocalToMs(s) {
@@ -74,37 +74,26 @@ function sessionStartMs(w) {
 function regConfig(w) {
   const reg = w.registration || {}
   const capacity = Number(reg.capacity) > 0 ? Math.floor(Number(reg.capacity)) : DEFAULT_CAPACITY
-  const closeHoursBefore =
-    reg.closeHoursBefore != null && Number(reg.closeHoursBefore) >= 0
-      ? Number(reg.closeHoursBefore)
-      : DEFAULT_CLOSE_HOURS_BEFORE
   return {
     enabled: reg.enabled !== false, // default ON for older sessions with no config
     capacity,
-    closeHoursBefore,
     opensAt: typeof reg.opensAt === 'string' ? reg.opensAt : '',
     closesAt: typeof reg.closesAt === 'string' ? reg.closesAt : '',
   }
 }
 
 // Whether registration is open for a webinar right now, and why not if it isn't.
-// `count` is how many have already registered for this slot.
+// `count` is how many have already registered for this slot. Registration closes
+// when: the admin turns it off, the seat cap is reached (auto-close — this is the
+// daily mail-send limit), it's before a scheduled open, or past a scheduled close.
 function regStatus(w, count, now = Date.now()) {
   const cfg = regConfig(w)
   const c = Number(count) || 0
   const remaining = Math.max(0, cfg.capacity - c)
   const opensAtMs = istLocalToMs(cfg.opensAt)
   const closesAtMs = istLocalToMs(cfg.closesAt)
-  // For multi-day sessions the cutoff is measured from the LAST day, so
-  // registration stays open through the run. Single-day: same as the start.
-  const isMultiDay =
-    typeof w.endDateISO === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(w.endDateISO) && w.endDateISO !== w.dateISO
-  const cutoffBase = isMultiDay ? sessionStartMs({ ...w, dateISO: w.endDateISO }) : sessionStartMs(w)
-  const cutoffMs = cutoffBase != null ? cutoffBase - cfg.closeHoursBefore * 3600000 : null
-  // The moment registration actually closes = the earliest of the 24h-before
-  // cutoff and any scheduled close time.
-  const closeCandidates = [cutoffMs, closesAtMs].filter((v) => v != null)
-  const closeAtMs = closeCandidates.length ? Math.min(...closeCandidates) : null
+  // Only a scheduled close feeds the countdown now (no 24h cutoff).
+  const closeAtMs = closesAtMs
 
   let state = 'open'
   let message = ''
@@ -117,9 +106,6 @@ function regStatus(w, count, now = Date.now()) {
   } else if (c >= cfg.capacity) {
     state = 'full'
     message = 'This session is fully booked.'
-  } else if (cutoffMs != null && now > cutoffMs) {
-    state = 'cutoff'
-    message = `Registration closes ${cfg.closeHoursBefore} hours before the session starts.`
   } else if (closesAtMs != null && now > closesAtMs) {
     state = 'closed'
     message = 'Registration has closed for this session.'
@@ -133,10 +119,9 @@ function regStatus(w, count, now = Date.now()) {
     capacity: cfg.capacity,
     remaining,
     enabled: cfg.enabled,
-    closeHoursBefore: cfg.closeHoursBefore,
     opensAt: cfg.opensAt,
     closesAt: cfg.closesAt,
-    closeAtMs, // epoch ms when registration closes (for a countdown), or null
+    closeAtMs, // epoch ms when a SCHEDULED close hits (for a countdown), or null
   }
 }
 
@@ -276,20 +261,15 @@ app.get('/api/popups', async (_req, res, next) => {
 })
 
 /* ---------------- Registration windows / seat caps ---------------- */
-// Admin-only: turn a webinar's registration on/off, set its seat cap, the
-// "close N hours before" cutoff, and optional scheduled open/close times.
-// Stored on the webinar doc under `registration` (like `popup`), saved on its
-// own so the (large) poster is never resent.
+// Admin-only: turn a webinar's registration on/off, set its seat cap, and
+// optional scheduled open/close times. Stored on the webinar doc under
+// `registration` (like `popup`), saved on its own so the poster is never resent.
 app.put('/api/webinars/:id/registration', requireAuth, async (req, res, next) => {
   try {
     const b = req.body || {}
     const registration = {
       enabled: b.enabled !== false,
       capacity: Number(b.capacity) > 0 ? Math.floor(Number(b.capacity)) : DEFAULT_CAPACITY,
-      closeHoursBefore:
-        b.closeHoursBefore != null && Number(b.closeHoursBefore) >= 0
-          ? Number(b.closeHoursBefore)
-          : DEFAULT_CLOSE_HOURS_BEFORE,
       opensAt: typeof b.opensAt === 'string' ? b.opensAt : '',
       closesAt: typeof b.closesAt === 'string' ? b.closesAt : '',
     }
@@ -562,10 +542,10 @@ async function registerWebinar(data, submittedAt, res) {
   // }
 
   // Registration window / seat cap: the slot must exist, be turned on, be inside
-  // its open window (not before the scheduled open, not past the 24h-before
-  // cutoff or scheduled close) and still have seats. Note: the seat check isn't
-  // atomic, so two submits racing for the last seat could both pass — acceptable
-  // here (at worst one extra confirmation email over the daily cap).
+  // its open window (not before a scheduled open, not past a scheduled close) and
+  // still have seats (auto-closes at the cap). Note: the seat check isn't atomic,
+  // so two submits racing for the last seat could both pass — acceptable here (at
+  // worst one extra confirmation email over the daily cap).
   const webinar = await Webinar.findOne({ id: webinarId }).lean()
   if (!webinar) {
     return res.status(404).json({ error: 'This session is no longer available.', field: 'webinar' })
